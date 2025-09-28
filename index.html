@@ -17,7 +17,6 @@
 
         // --- 🚨 步驟一：請在這裡貼上您自己的 Firebase 設定 🚨 ---
         // 請務必從您的 Firebase 專案設定中取得以下金鑰。
-        // 如果您在 GitHub Pages 上運行但未填寫此處，網頁將進入「離線模式」，但 LINE 傳送功能仍可使用。
         const YOUR_FIREBASE_CONFIG = {
             apiKey: null, // <-- 請貼上您的 apiKey (例如: "AIzaSyC...")
             authDomain: null, // <-- 請貼上您的 authDomain (例如: "your-project-id.firebaseapp.com")
@@ -35,14 +34,12 @@
         window.auth = null;
         window.currentUserId = null;
         window.isFirebaseReady = false; // 追蹤 Firebase 是否成功初始化
-        // 在公開部署時，使用專案 ID 作為 app ID
         window.appId = YOUR_FIREBASE_CONFIG.projectId || 'default-github-page-app'; 
 
         /**
          * Initializes Firebase services and authenticates the user.
          */
         async function initializeFirebase() {
-            // 檢查使用者是否已填寫配置，並移除 null 值避免初始化錯誤
             const cleanConfig = Object.fromEntries(
                 Object.entries(YOUR_FIREBASE_CONFIG).filter(([_, v]) => v !== null)
             );
@@ -51,7 +48,7 @@
             if (!hasUserConfig) {
                 console.warn("Firebase 設定檔遺失或未填寫。雲端訂單備份功能已停用 (離線模式)。");
                 document.getElementById('user-info').textContent = '用戶ID: 離線模式 (請填寫配置)';
-                return; // 停止初始化，避免錯誤
+                return; 
             }
             
             // --- 正常初始化流程 (使用用戶的配置) ---
@@ -61,7 +58,6 @@
                 window.auth = getAuth(window.app);
                 window.isFirebaseReady = true;
 
-                // 在 GitHub Pages 環境中，我們只執行匿名登入
                 await signInAnonymously(window.auth);
 
                 onAuthStateChanged(window.auth, (user) => {
@@ -109,57 +105,118 @@
     </style>
     <script>
         // --- APP DATA AND STATE ---
+        // 🚨 根據您提供的圖片，已將所有菜單品項加入此處 🚨
+        const EXTRA_CHARGE = 10; // 加量費用 NT$10
+        
         const menuData = [
             // --- 炒飯類 (Fried Rice) ---
             { id: 'FR1', name: '肉絲炒飯', price: 70, category: '炒飯類', description: '經典肉絲，米粒分明' },
-            { id: 'FR2', name: '蝦仁蛋炒飯', price: 80, category: '炒飯類', description: 'Q彈蝦仁，金黃蛋花' },
-            { id: 'FR3', name: '香腸炒飯', price: 75, category: '炒飯類', description: '台式香腸，鹹香夠味' },
+            { id: 'FR2', name: '蝦仁蛋炒飯', price: 75, category: '炒飯類', description: 'Q彈蝦仁，金黃蛋花' },
+            { id: 'FR3', name: '香腸蛋炒飯', price: 75, category: '炒飯類', description: '台式香腸，風味獨特' },
+            { id: 'FR4', name: '火腿蛋炒飯', price: 75, category: '炒飯類', description: '火腿丁，經典口味' },
+            { id: 'FR5', name: '培根蛋炒飯', price: 75, category: '炒飯類', description: '培根香氣，口感豐富' },
+            { id: 'FR6', name: '雞肉蛋炒飯', price: 75, category: '炒飯類', description: '鮮嫩雞肉，家常美味' },
+            { id: 'FR7', name: '宮保雞丁炒飯', price: 80, category: '炒飯類', description: '微辣宮保醬汁' },
+            { id: 'FR8', name: '麻婆雞丁炒飯', price: 80, category: '炒飯類', description: '麻辣豆腐，下飯首選' },
+            { id: 'FR9', name: '青椒肉絲炒飯', price: 80, category: '炒飯類', description: '青椒肉絲，香氣四溢' },
             { id: 'FR10', name: '牛肉蛋炒飯', price: 85, category: '炒飯類', description: '鮮嫩牛肉，風味濃郁' },
-            
-            // --- 蓋飯/燴飯 (Rice Bowls) ---
+            { id: 'FR11', name: '青椒牛肉蛋炒飯', price: 90, category: '炒飯類', description: '青椒牛肉，大份滿足' },
+
+            // --- 蓋飯/燴飯 (Covered Rice / Gravy Rice) ---
             { id: 'CR1', name: '日式豬肉蓋飯', price: 90, category: '蓋飯/燴飯', description: '日式醬汁，滑嫩豬肉' },
-            { id: 'CR5', name: '宮保雞丁蓋飯', price: 90, category: '蓋飯/燴飯', description: '配飯首選，濃郁醬汁' },
-            { id: 'CR8', name: '麻婆豆腐蓋飯', price: 90, category: '蓋飯/燴飯', description: '麻辣鮮香，拌飯一流' },
+            { id: 'CR2', name: '日式雞肉蓋飯', price: 90, category: '蓋飯/燴飯', description: '日式醬汁，鮮嫩雞肉' },
+            { id: 'CR3', name: '日式海鮮蓋飯', price: 90, category: '蓋飯/燴飯', description: '日式醬汁，豐富海鮮' },
+            { id: 'CR4', name: '日式牛肉蓋飯', price: 90, category: '蓋飯/燴飯', description: '日式醬汁，鮮嫩牛肉' },
+            { id: 'CR5', name: '宮保雞丁蓋飯', price: 90, category: '蓋飯/燴飯', description: '微辣宮保醬汁，配飯首選' },
+            { id: 'CR6', name: '辣子雞丁蓋飯', price: 90, category: '蓋飯/燴飯', description: '香辣夠味，開胃選擇' },
+            { id: 'CR7', name: '三杯雞丁蓋飯', price: 90, category: '蓋飯/燴飯', description: '九層塔香氣，台灣味' },
+            { id: 'CR8', name: '麻婆雞丁蓋飯', price: 90, category: '蓋飯/燴飯', description: '麻辣豆腐，濃郁醬汁' },
+            { id: 'CR9', name: '紅燒豆腐蓋飯', price: 90, category: '蓋飯/燴飯', description: '經典紅燒，鹹香下飯' },
 
-            // --- 精緻套餐 (Set Meals) ---
-            { id: 'SM1', name: '宮保雞丁套餐', price: 260, category: '精緻套餐', description: '主菜+白飯+三樣菜' },
-            { id: 'SM4', name: '蔥爆牛套餐', price: 270, category: '精緻套餐', description: '主菜+白飯+三樣菜' },
-
-            // --- 麵類 (Noodles) ---
-            { id: 'N1', name: '肉絲炒麵', price: 70, category: '麵類', description: '經典肉絲，大火快炒' },
-            { id: 'N7', name: '沙茶牛肉炒麵', price: 90, category: '麵類', description: '沙茶風味，濃郁香辣' },
-
-            // --- 鍋燒麵/冬粉/粥 (Stir-fried Noodles/Vermicelli/Porridge) ---
-            { id: 'P1', name: '鍋燒意麵', price: 80, category: '鍋燒類', description: '意麵Q彈，湯頭鮮甜' },
-            { id: 'P5', name: '鍋燒海鮮粥', price: 80, category: '鍋燒類', description: '鮮美海鮮，米粒軟糯' },
-
-            // --- 飯類 (Rice) ---
-            { id: 'R1', name: '宮保雞丁飯', price: 75, category: '飯類', description: '下飯小炒，搭配白飯' },
-            { id: 'R6', name: '蔥爆牛肉飯', price: 85, category: '飯類', description: '鮮嫩牛肉，蔥段爆香' },
-
-            // --- 泡菜類 (Pickled Cabbage) ---
-            { id: 'K1', name: '泡菜豬肉炒飯', price: 80, category: '泡菜類', description: '泡菜酸辣，搭配豬肉' },
-            { id: 'K7', name: '泡菜牛肉炒飯', price: 90, category: '泡菜類', description: '泡菜酸辣，搭配牛肉' },
+            // --- 麵類 (Wok-Fried Noodles) ---
+            { id: 'N1', name: '肉絲炒麵', price: 70, category: '炒麵/烏龍', description: '經典肉絲，大火快炒' },
+            { id: 'N2', name: '海鮮炒麵', price: 75, category: '炒麵/烏龍', description: '新鮮海鮮，口感豐富' },
+            { id: 'N3', name: '蝦仁炒麵', price: 75, category: '炒麵/烏龍', description: 'Q彈蝦仁，鮮甜美味' },
+            { id: 'N4', name: '蛤仔炒麵', price: 75, category: '炒麵/烏龍', description: '蛤蜊鮮味，清爽湯頭' },
+            { id: 'N5', name: '炒烏龍', price: 75, category: '炒麵/烏龍', description: 'Q彈烏龍麵，大火快炒' },
+            { id: 'N6', name: '牛肉炒麵', price: 85, category: '炒麵/烏龍', description: '鮮嫩牛肉，香氣濃郁' },
+            { id: 'N7', name: '沙茶牛肉炒麵', price: 90, category: '炒麵/烏龍', description: '沙茶風味，濃郁香辣' },
             
-            // --- 單點小炒/蛋類 (A La Carte/Eggs) ---
-            { id: 'ALC1', name: '時令青菜', price: 40, category: '單點小炒', description: '當季新鮮青菜' },
-            { id: 'ALC3', name: '蔥花蛋', price: 40, category: '單點小炒', description: '金黃蔥花，香氣濃郁' },
-            { id: 'ALC11', name: '宮保雞丁', price: 75, category: '單點小炒', description: '香辣微甜' },
-            { id: 'ALC19', name: '青椒牛肉', price: 90, category: '單點小炒', description: '鑊氣十足' },
+            // --- 飯類/快炒 (Wok-Fried Rice Dishes) ---
+            { id: 'WR1', name: '宮保雞丁飯', price: 75, category: '飯類/快炒', description: '微辣宮保雞丁，附白飯' },
+            { id: 'WR2', name: '辣子雞丁飯', price: 75, category: '飯類/快炒', description: '香辣夠味，附白飯' },
+            { id: 'WR3', name: '三杯雞丁飯', price: 75, category: '飯類/快炒', description: '九層塔香氣，附白飯' },
+            { id: 'WR4', name: '蔥爆肉絲飯', price: 75, category: '飯類/快炒', description: '蔥爆香氣，附白飯' },
+            { id: 'WR5', name: '海鮮什錦飯', price: 80, category: '飯類/快炒', description: '豐富海鮮，附白飯' },
+            { id: 'WR6', name: '蔥爆牛肉飯', price: 85, category: '飯類/快炒', description: '經典蔥爆，附白飯' },
+            { id: 'WR7', name: '麻婆豆腐飯', price: 75, category: '飯類/快炒', description: '麻婆豆腐醬，附白飯' },
+            { id: 'WR8', name: '紅燒豆腐飯', price: 75, category: '飯類/快炒', description: '紅燒豆腐醬，附白飯' },
+
+            // --- 韓式泡菜類 (Kimchi Dishes) ---
+            { id: 'KC1', name: '泡菜豬肉飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜炒豬肉，附白飯' },
+            { id: 'KC2', name: '泡菜蝦仁炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜風味炒飯' },
+            { id: 'KC3', name: '泡菜香腸炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與香腸' },
+            { id: 'KC4', name: '泡菜雞肉炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與雞肉丁' },
+            { id: 'KC5', name: '泡菜火腿炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與火腿' },
+            { id: 'KC6', name: '泡菜培根炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與培根' },
+            { id: 'KC7', name: '泡菜牛肉炒飯', price: 90, category: '韓式泡菜類', description: '酸辣泡菜與牛肉' },
+            { id: 'KC8', name: '泡菜豬肉炒麵', price: 80, category: '韓式泡菜類', description: '酸辣泡菜炒豬肉麵' },
+            { id: 'KC9', name: '泡菜海鮮炒麵', price: 80, category: '韓式泡菜類', description: '酸辣泡菜海鮮炒麵' },
+            { id: 'KC10', name: '泡菜炒烏龍麵', price: 80, category: '韓式泡菜類', description: '酸辣泡菜炒烏龍' },
+
+            // --- 鍋燒類 (Noodle in Soup) ---
+            { id: 'NS1', name: '鍋燒意麵', price: 80, category: '鍋燒類', description: '經典意麵，豐富配料' },
+            { id: 'NS2', name: '鍋燒冬粉', price: 80, category: '鍋燒類', description: '清爽冬粉，暖胃湯頭' },
+            { id: 'NS3', name: '鍋燒烏龍麵', price: 80, category: '鍋燒類', description: 'Q彈烏龍麵，鮮美湯頭' },
+            { id: 'NS4', name: '味噌馬龍麵', price: 80, category: '鍋燒類', description: '日式味噌湯頭' },
+            { id: 'NS5', name: '鍋燒海鮮粥', price: 80, category: '鍋燒類', description: '新鮮海鮮，濃郁粥底' },
+            
+            // --- 精緻套餐 (Set Meals) ---
+            { id: 'SM1', name: '宮保雞丁套餐', price: 260, category: '精緻套餐', description: '附白飯(無限量)、三樣配菜及每日推薦湯' },
+            { id: 'SM2', name: '三杯雞丁套餐', price: 260, category: '精緻套餐', description: '附白飯(無限量)、三樣配菜及每日推薦湯' },
+            { id: 'SM3', name: '蔥爆豬套餐', price: 260, category: '精緻套餐', description: '附白飯(無限量)、三樣配菜及每日推薦湯' },
+            { id: 'SM4', name: '蔥爆牛套餐', price: 270, category: '精緻套餐', description: '附白飯(無限量)、三樣配菜及每日推薦湯' },
 
             // --- 湯類 (Soup) ---
-            { id: 'S1', name: '味噌豆腐湯', price: 20, category: '湯類', description: '清淡日式風味' },
-            { id: 'S6', name: '蛤仔湯', price: 30, category: '湯類', description: '原味鮮甜' },
+            { id: 'SP1', name: '味噌豆腐湯', price: 20, category: '湯類', description: '日式經典，清淡口味' },
+            { id: 'SP2', name: '蛋花湯', price: 25, category: '湯類', description: '滑嫩蛋花，家常好味' },
+            { id: 'SP3', name: '貢丸湯', price: 35, category: '湯類', description: '彈牙貢丸，湯頭清甜' },
+            { id: 'SP4', name: '魚丸湯', price: 35, category: '湯類', description: '鮮美魚丸，清爽不膩' },
+            { id: 'SP5', name: '味噌蛤仔湯', price: 50, category: '湯類', description: '味噌與蛤蜊的結合' },
+            { id: 'SP6', name: '蛤仔湯', price: 30, category: '湯類', description: '原味蛤蜊，鮮甜暖胃' },
+            { id: 'SP7', name: '蛤仔湯', price: 50, category: '湯類', description: '鮮脆筍子，湯頭清香' },
+
+            // --- 單點小炒 (Side Dishes) ---
+            { id: 'SD1', name: '時令青菜', price: 40, category: '單點/小菜', description: '新鮮時令蔬菜，請依現場時價，暫定60元' }, // 圖片標註時價
+            { id: 'SD2', name: '白飯', price: 10, category: '單點/小菜', description: '香Q白飯' },
+            { id: 'SD3', name: '蔥花蛋', price: 40, category: '單點/小菜', description: '蔥花與蛋的完美結合' },
+            { id: 'SD4', name: '九層塔蛋', price: 40, category: '單點/小菜', description: '九層塔香氣十足' },
+            { id: 'SD5', name: '菜脯蛋', price: 40, category: '單點/小菜', description: '菜脯丁增加口感' },
+            { id: 'SD6', name: '洋蔥炒蛋', price: 60, category: '單點/小菜', description: '洋蔥的甜味與炒蛋' },
+            { id: 'SD7', name: '蝦仁烘蛋', price: 70, category: '單點/小菜', description: '蝦仁與厚實烘蛋' },
+            { id: 'SD8', name: '麻婆豆腐', price: 70, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD9', name: '紅燒豆腐', price: 75, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD10', name: '青椒肉絲', price: 75, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD11', name: '宮保雞丁', price: 75, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD12', name: '三杯雞丁', price: 75, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD13', name: '辣子雞丁', price: 75, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD14', name: '蔥爆豬', price: 75, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD15', name: '蔥爆雞', price: 75, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD16', name: '泡菜豬肉', price: 80, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD17', name: '蔥爆牛肉', price: 85, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD18', name: '糖醋雞丁', price: 85, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD19', name: '青椒牛肉', price: 90, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD20', name: '泡菜牛肉', price: 90, category: '單點/小菜', description: '單點菜餚，無附飯' },
+            { id: 'SD21', name: '九層塔蛋', price: 40, category: '單點/小菜', description: '九層塔香氣十足' }, // 圖片上有兩次九層塔蛋，保留一個
         ];
 
-        let cart = {}; // { itemId: { item, quantity } }
+        let cart = {}; // { uniqueKey: { item, quantity, isExtra, price, uniqueKey } }
+        let currentSelectedItem = null; // 當前在 Options Modal 中選擇的項目
 
         // --- UTILITY FUNCTIONS ---
 
         /**
          * Displays a temporary notification message in the corner.
-         * @param {string} message The message to display.
-         * @param {string} type 'success' or 'error'
          */
         function showNotification(message, type = 'success') {
             const notification = document.getElementById('notification');
@@ -179,42 +236,81 @@
 
         /**
          * Formats a number to currency string (NTD format).
-         * @param {number} amount
-         * @returns {string}
          */
         function formatCurrency(amount) {
             return '$' + amount.toLocaleString('zh-TW');
         }
 
-        // --- CART LOGIC ---
+        // --- CART & OPTIONS LOGIC ---
 
         /**
-         * Adds an item to the cart or increments its quantity.
-         * @param {string} itemId The ID of the item to add.
+         * Opens the modal to select quantity and options for an item.
+         * @param {string} itemId The ID of the item.
          */
-        function addToCart(itemId) {
+        function openItemOptions(itemId) {
             const item = menuData.find(i => i.id === itemId);
             if (!item) return;
 
-            if (cart[itemId]) {
-                cart[itemId].quantity += 1;
-            } else {
-                cart[itemId] = { ...item, quantity: 1 }; 
-            }
+            currentSelectedItem = item;
 
-            updateCartDisplay();
-            showNotification(`${item.name} 已加入購物車`, 'success');
+            // Update modal title and details
+            document.getElementById('item-modal-title').textContent = item.name;
+            document.getElementById('item-modal-price').textContent = formatCurrency(item.price);
+            document.getElementById('item-modal-extra-charge').textContent = `(加量費用 ${formatCurrency(EXTRA_CHARGE)})`;
+            document.getElementById('item-quantity-input').value = 1;
+            document.getElementById('item-extra-checkbox').checked = false;
+
+            // Show the modal
+            toggleOptionsModal(true);
         }
 
         /**
-         * Decrements the quantity of an item or removes it if quantity reaches 0.
-         * @param {string} itemId The ID of the item to remove.
+         * Finalizes item addition to the cart from the options modal.
          */
-        function removeFromCart(itemId) {
-            if (cart[itemId]) {
-                cart[itemId].quantity -= 1;
-                if (cart[itemId].quantity <= 0) {
-                    delete cart[itemId];
+        function addItemToCart() {
+            if (!currentSelectedItem) return;
+
+            const quantity = parseInt(document.getElementById('item-quantity-input').value, 10);
+            const isExtra = document.getElementById('item-extra-checkbox').checked;
+
+            if (quantity < 1) {
+                showNotification('數量至少為 1', 'error');
+                return;
+            }
+
+            const uniqueKey = `${currentSelectedItem.id}-${isExtra}`;
+            const finalPrice = currentSelectedItem.price + (isExtra ? EXTRA_CHARGE : 0);
+
+            if (cart[uniqueKey]) {
+                cart[uniqueKey].quantity += quantity;
+            } else {
+                cart[uniqueKey] = { 
+                    id: currentSelectedItem.id,
+                    name: currentSelectedItem.name,
+                    price: currentSelectedItem.price, // Base price
+                    finalPrice: finalPrice, // Price with extra charge
+                    quantity: quantity, 
+                    isExtra: isExtra,
+                    uniqueKey: uniqueKey
+                };
+            }
+
+            // Close modal and update display
+            toggleOptionsModal(false);
+            updateCartDisplay();
+            showNotification(`${currentSelectedItem.name} (${isExtra ? '加量' : '一般'}) x${quantity} 已加入購物車`, 'success');
+            currentSelectedItem = null;
+        }
+        
+        /**
+         * Decrements the quantity of an item or removes it if quantity reaches 0.
+         * @param {string} uniqueKey The unique key of the item variation to remove.
+         */
+        function removeFromCart(uniqueKey) {
+            if (cart[uniqueKey]) {
+                cart[uniqueKey].quantity -= 1;
+                if (cart[uniqueKey].quantity <= 0) {
+                    delete cart[uniqueKey];
                 }
                 updateCartDisplay();
             }
@@ -226,12 +322,12 @@
         function updateCartDisplay() {
             const cartItems = Object.values(cart);
             const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-            const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+            const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
 
             document.getElementById('cart-count').textContent = totalItems;
             document.getElementById('cart-total-amount').textContent = formatCurrency(totalAmount);
 
-            // Update modal content if it's open
+            // Update main checkout modal content if it's open
             renderCartModalContent();
         }
 
@@ -255,20 +351,24 @@
                 document.getElementById('customer-input-container').classList.remove('hidden'); // Show input if cart has items
 
                 cartItems.forEach(item => {
+                    const optionText = item.isExtra ? '<span class="text-red-500">(加量+$10)</span>' : '<span class="text-gray-400">(一般)</span>';
+                    const subtotal = item.finalPrice * item.quantity;
+                    
                     html += `
                         <div class="flex items-center justify-between p-4 border-b border-orange-100 last:border-b-0">
                             <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-lg text-gray-800 truncate">${item.name}</p>
-                                <p class="text-orange-500">${formatCurrency(item.price)} x ${item.quantity} = ${formatCurrency(item.price * item.quantity)}</p>
+                                <p class="font-semibold text-lg text-gray-800 truncate">${item.name} ${optionText}</p>
+                                <p class="text-orange-500">${formatCurrency(item.finalPrice)} x ${item.quantity} = ${formatCurrency(subtotal)}</p>
                             </div>
                             <div class="flex items-center space-x-2 ml-4">
-                                <button onclick="removeFromCart('${item.id}')" class="w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition duration-150 active:scale-95">
+                                <button onclick="removeFromCart('${item.uniqueKey}')" class="w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition duration-150 active:scale-95">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />
                                     </svg>
                                 </button>
                                 <span class="font-bold text-gray-800 w-6 text-center">${item.quantity}</span>
-                                <button onclick="addToCart('${item.id}')" class="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200 transition duration-150 active:scale-95">
+                                <!-- For simplicity, clicking + will open the full option modal again -->
+                                <button onclick="openItemOptions('${item.id}')" class="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200 transition duration-150 active:scale-95">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
                                     </svg>
@@ -303,7 +403,7 @@
                 return;
             }
 
-            const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.price, 0);
+            const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
             let docRefId = 'N/A (離線模式)'; // Default ID before submission
 
             document.getElementById('loading-overlay').classList.remove('hidden');
@@ -318,9 +418,11 @@
                     items: Object.values(cart).map(item => ({
                         id: item.id,
                         name: item.name,
-                        price: item.price,
+                        option: item.isExtra ? '加量' : '一般',
+                        basePrice: item.price,
+                        finalPrice: item.finalPrice, // Price with option
                         quantity: item.quantity,
-                        subtotal: item.price * item.quantity
+                        subtotal: item.finalPrice * item.quantity
                     })),
                     totalAmount: totalAmount,
                     status: 'Pending', // 待處理
@@ -328,7 +430,6 @@
                 };
 
                 // Private collection path for orders: artifacts/{appId}/users/{userId}/orders
-                // 這裡的 appId 會使用您在 YOUR_FIREBASE_CONFIG 中設定的 projectId
                 const path = `artifacts/${window.appId}/users/${window.currentUserId}/orders`;
 
                 try {
@@ -355,10 +456,12 @@
             messageText += `📜 訂單詳情:\n`;
 
             Object.values(cart).forEach(item => {
-                messageText += ` > ${item.name} x ${item.quantity} (${formatCurrency(item.price * item.quantity)})\n`;
+                const optionText = item.isExtra ? ' (加量)' : '';
+                messageText += ` > ${item.name}${optionText} x ${item.quantity} (${formatCurrency(item.finalPrice * item.quantity)})\n`;
             });
 
             messageText += `--------------------------\n`;
+            // 🚨 步驟二：請將 joe690130 替換成您的 LINE ID 🚨
             messageText += `(參考ID: ${docRefId}) 請傳送給 LINE ID: joe690130`;
 
             // 5. Create the LINE message URL
@@ -376,7 +479,7 @@
             toggleCartModal(false);
 
             document.getElementById('loading-overlay').classList.add('hidden');
-            showNotification(`請切換至 LINE 視窗手動傳送訊息給 joe690130 完成訂購！`, 'success');
+            showNotification(`請切換至 LINE 視窗手動傳送訊息給 joe690130 完成通知！`, 'success');
         }
 
 
@@ -388,7 +491,10 @@
         function renderMenu() {
             const menuContainer = document.getElementById('menu-container');
             // Define display order for categories
-            const categoryOrder = ['炒飯類', '蓋飯/燴飯', '精緻套餐', '麵類', '鍋燒類', '飯類', '泡菜類', '單點小炒', '湯類'];
+            const categoryOrder = [
+                '炒飯類', '蓋飯/燴飯', '炒麵/烏龍', '飯類/快炒', '韓式泡菜類', 
+                '鍋燒類', '精緻套餐', '單點/小菜', '湯類'
+            ];
             const categories = categoryOrder.filter(c => menuData.some(item => item.category === c));
             let html = '';
 
@@ -415,12 +521,13 @@
                             <!-- Price and Button Section -->
                             <div class="flex justify-between items-center mt-2 border-t pt-2">
                                 <span class="text-2xl font-extrabold text-orange-600">${formatCurrency(item.price)}</span>
-                                <button onclick="addToCart('${item.id}')"
+                                <!-- CHANGED: Now opens the options modal -->
+                                <button onclick="openItemOptions('${item.id}')"
                                     class="px-4 py-2 bg-orange-500 text-white font-semibold rounded-full shadow-md hover:bg-orange-600 transition duration-150 active:scale-95 flex items-center space-x-1 text-sm">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
                                     </svg>
-                                    <span>點餐</span>
+                                    <span>點餐/選量</span>
                                 </button>
                             </div>
                         </div>
@@ -434,7 +541,7 @@
         }
 
         /**
-         * Toggles the visibility of the cart modal.
+         * Toggles the visibility of the main cart modal.
          * @param {boolean} show Whether to show or hide the modal.
          */
         function toggleCartModal(show) {
@@ -448,6 +555,25 @@
                 }, 10);
             } else {
                 modal.querySelector('.modal-content').classList.add('opacity-0', 'translate-y-4');
+                modal.classList.remove('bg-black', 'bg-opacity-50');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+        
+        /**
+         * Toggles the visibility of the item options modal.
+         * @param {boolean} show Whether to show or hide the modal.
+         */
+        function toggleOptionsModal(show) {
+            const modal = document.getElementById('item-options-modal');
+            if (show) {
+                modal.classList.remove('hidden');
+                setTimeout(() => { 
+                    modal.querySelector('.modal-content').classList.remove('opacity-0', 'scale-95');
+                    modal.classList.add('bg-black', 'bg-opacity-50');
+                }, 10);
+            } else {
+                modal.querySelector('.modal-content').classList.add('opacity-0', 'scale-95');
                 modal.classList.remove('bg-black', 'bg-opacity-50');
                 setTimeout(() => modal.classList.add('hidden'), 300);
             }
@@ -467,9 +593,11 @@
         };
 
         // Expose functions globally for HTML event handlers
-        window.addToCart = addToCart;
+        window.openItemOptions = openItemOptions;
+        window.addItemToCart = addItemToCart;
         window.removeFromCart = removeFromCart;
         window.toggleCartModal = toggleCartModal;
+        window.toggleOptionsModal = toggleOptionsModal; // For closing the options modal
         window.submitOrder = submitOrder;
     </script>
 </head>
@@ -504,7 +632,7 @@
     <!-- Main Content: Menu -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <p class="text-lg text-gray-600 mb-6 border-b pb-4">
-            請點選您想點的品項。點餐完成後，請於結帳頁面填寫姓名/桌號，並點擊送出按鈕。
+            請點選您想點的品項。點餐時可選擇是否 **加量 (+${EXTRA_CHARGE}元)**。
         </p>
 
         <!-- Menu Container (Content rendered by JavaScript) -->
@@ -516,6 +644,56 @@
             </div>
         </div>
     </main>
+    
+    <!-- Item Options Modal (NEW FEATURE) -->
+    <div id="item-options-modal" class="fixed inset-0 hidden z-50 transition-all duration-300" onclick="if(event.target.id === 'item-options-modal') toggleOptionsModal(false)">
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
+            <!-- Modal Content -->
+            <div class="modal-content bg-white w-full max-w-sm rounded-xl shadow-2xl transform transition-all duration-300 opacity-0 scale-95" role="dialog" aria-modal="true" aria-labelledby="item-modal-title">
+                
+                <!-- Modal Header -->
+                <div class="flex justify-between items-center p-4 bg-orange-500 rounded-t-xl">
+                    <h3 id="item-modal-title" class="text-xl font-bold text-white">品項名稱</h3>
+                    <button onclick="toggleOptionsModal(false)" class="text-white hover:text-orange-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body: Options -->
+                <div class="p-6 space-y-4">
+                    <div class="text-lg font-semibold text-gray-700">
+                        單價: <span id="item-modal-price" class="text-orange-600"></span>
+                    </div>
+
+                    <!-- Quantity Selector -->
+                    <div>
+                        <label for="item-quantity-input" class="block text-sm font-medium text-gray-700 mb-1">選擇數量</label>
+                        <input type="number" id="item-quantity-input" value="1" min="1" max="99" 
+                            class="w-full p-3 border border-gray-300 rounded-lg text-center focus:ring-orange-500 focus:border-orange-500" />
+                    </div>
+
+                    <!-- Extra Quantity Checkbox -->
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <label for="item-extra-checkbox" class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="item-extra-checkbox" class="h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
+                            <span class="text-base font-semibold text-gray-800">是否加量</span>
+                        </label>
+                        <span id="item-modal-extra-charge" class="text-red-500 font-bold text-sm">(加量費用 $10)</span>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="p-4 border-t border-gray-100">
+                    <button onclick="addItemToCart()"
+                        class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99]">
+                        加入購物車
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Cart Modal (Checkout Pop-up) -->
     <div id="cart-modal" class="fixed inset-0 hidden z-40 transition-all duration-300" onclick="if(event.target.id === 'cart-modal') toggleCartModal(false)">
