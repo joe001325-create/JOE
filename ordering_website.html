@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>珍香小館 - 線上訂餐</title>
+    <!-- Load Tailwind CSS for modern, responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Firebase SDKs for Auth and Firestore -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // setLogLevel('Debug'); // 取消註釋此行可查看 Firebase 詳細日誌
+
+        // --- GLOBAL SETUP (Required by Canvas Environment) ---
+        window.app = null;
+        window.db = null;
+        window.auth = null;
+        window.currentUserId = null;
+        window.isFirebaseReady = false; // 追蹤 Firebase 是否成功初始化
+        window.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        /**
+         * Initializes Firebase services and authenticates the user.
+         */
+        async function initializeFirebase() {
+            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+            
+            // 檢查是否在本地運行 (如果缺乏 Canvas 環境變數)
+            const isLocalRun = !firebaseConfig || Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey;
+
+            if (isLocalRun) {
+                console.warn("Firebase設定檔遺失。雲端訂單備份功能已停用 (本地運行模式)。");
+                document.getElementById('user-info').textContent = '用戶ID: 離線模式';
+                return; // 停止初始化，避免錯誤
+            }
+            
+            // --- 正常 Canvas 環境初始化流程 ---
+            try {
+                window.app = initializeApp(firebaseConfig);
+                window.db = getFirestore(window.app);
+                window.auth = getAuth(window.app);
+                window.isFirebaseReady = true;
+
+                // 登入
+                if (initialAuthToken) {
+                    await signInWithCustomToken(window.auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(window.auth);
+                }
+
+                onAuthStateChanged(window.auth, (user) => {
+                    if (user) {
+                        window.currentUserId = user.uid;
+                        document.getElementById('user-info').textContent = '用戶ID: ' + user.uid.substring(0, 8) + '... (雲端連線)';
+                    } else {
+                        window.currentUserId = null;
+                        document.getElementById('user-info').textContent = '用戶ID: 離線';
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase 初始化錯誤:", error);
+                showNotification('Firebase 初始化失敗，雲端備份無法使用。', 'error');
+                window.isFirebaseReady = false;
+            }
+        }
+
+        // Expose Firebase functions to the global scope
+        window.initializeFirebase = initializeFirebase;
+        window.addDoc = addDoc;
+        window.collection = collection;
+        window.serverTimestamp = serverTimestamp;
+
+    </script>
+    <style>
+        /* Custom font and basic styling */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Noto+Sans+TC:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            background-color: #f7f7f7;
+        }
+        /* Custom scrollbar for aesthetic */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #f97316; /* Orange-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #ffeac7; /* Lighter Orange */
+        }
+    </style>
+    <script>
+        // --- APP DATA AND STATE ---
+        const menuData = [
+            // --- 炒飯類 (Fried Rice) ---
+            { id: 'FR1', name: '肉絲炒飯', price: 70, category: '炒飯類', description: '經典肉絲，米粒分明' },
+            { id: 'FR2', name: '蝦仁蛋炒飯', price: 80, category: '炒飯類', description: 'Q彈蝦仁，金黃蛋花' },
+            { id: 'FR3', name: '香腸炒飯', price: 75, category: '炒飯類', description: '台式香腸，鹹香夠味' },
+            { id: 'FR10', name: '牛肉蛋炒飯', price: 85, category: '炒飯類', description: '鮮嫩牛肉，風味濃郁' },
+            
+            // --- 蓋飯/燴飯 (Rice Bowls) ---
+            { id: 'CR1', name: '日式豬肉蓋飯', price: 90, category: '蓋飯/燴飯', description: '日式醬汁，滑嫩豬肉' },
+            { id: 'CR5', name: '宮保雞丁蓋飯', price: 90, category: '蓋飯/燴飯', description: '配飯首選，濃郁醬汁' },
+            { id: 'CR8', name: '麻婆豆腐蓋飯', price: 90, category: '蓋飯/燴飯', description: '麻辣鮮香，拌飯一流' },
+
+            // --- 精緻套餐 (Set Meals) ---
+            { id: 'SM1', name: '宮保雞丁套餐', price: 260, category: '精緻套餐', description: '主菜+白飯+三樣菜' },
+            { id: 'SM4', name: '蔥爆牛套餐', price: 270, category: '精緻套餐', description: '主菜+白飯+三樣菜' },
+
+            // --- 麵類 (Noodles) ---
+            { id: 'N1', name: '肉絲炒麵', price: 70, category: '麵類', description: '經典肉絲，大火快炒' },
+            { id: 'N7', name: '沙茶牛肉炒麵', price: 90, category: '麵類', description: '沙茶風味，濃郁香辣' },
+
+            // --- 鍋燒麵/冬粉/粥 (Stir-fried Noodles/Vermicelli/Porridge) ---
+            { id: 'P1', name: '鍋燒意麵', price: 80, category: '鍋燒類', description: '意麵Q彈，湯頭鮮甜' },
+            { id: 'P5', name: '鍋燒海鮮粥', price: 80, category: '鍋燒類', description: '鮮美海鮮，米粒軟糯' },
+
+            // --- 飯類 (Rice) ---
+            { id: 'R1', name: '宮保雞丁飯', price: 75, category: '飯類', description: '下飯小炒，搭配白飯' },
+            { id: 'R6', name: '蔥爆牛肉飯', price: 85, category: '飯類', description: '鮮嫩牛肉，蔥段爆香' },
+
+            // --- 泡菜類 (Pickled Cabbage) ---
+            { id: 'K1', name: '泡菜豬肉炒飯', price: 80, category: '泡菜類', description: '泡菜酸辣，搭配豬肉' },
+            { id: 'K7', name: '泡菜牛肉炒飯', price: 90, category: '泡菜類', description: '泡菜酸辣，搭配牛肉' },
+            
+            // --- 單點小炒/蛋類 (A La Carte/Eggs) ---
+            { id: 'ALC1', name: '時令青菜', price: 40, category: '單點小炒', description: '當季新鮮青菜' },
+            { id: 'ALC3', name: '蔥花蛋', price: 40, category: '單點小炒', description: '金黃蔥花，香氣濃郁' },
+            { id: 'ALC11', name: '宮保雞丁', price: 75, category: '單點小炒', description: '香辣微甜' },
+            { id: 'ALC19', name: '青椒牛肉', price: 90, category: '單點小炒', description: '鑊氣十足' },
+
+            // --- 湯類 (Soup) ---
+            { id: 'S1', name: '味噌豆腐湯', price: 20, category: '湯類', description: '清淡日式風味' },
+            { id: 'S6', name: '蛤仔湯', price: 30, category: '湯類', description: '原味鮮甜' },
+        ];
+
+        let cart = {}; // { itemId: { item, quantity } }
+
+        // --- UTILITY FUNCTIONS ---
+
+        /**
+         * Displays a temporary notification message in the corner.
+         * @param {string} message The message to display.
+         * @param {string} type 'success' or 'error'
+         */
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const color = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+
+            notification.textContent = message;
+            notification.className = `fixed bottom-5 right-5 p-4 rounded-lg shadow-xl text-white transition-opacity duration-300 z-50 ${color}`;
+            notification.classList.remove('opacity-0', 'hidden');
+            notification.classList.add('opacity-100');
+
+            setTimeout(() => {
+                notification.classList.remove('opacity-100');
+                notification.classList.add('opacity-0');
+                setTimeout(() => notification.classList.add('hidden'), 300);
+            }, 3000);
+        }
+
+        /**
+         * Formats a number to currency string (NTD format).
+         * @param {number} amount
+         * @returns {string}
+         */
+        function formatCurrency(amount) {
+            return '$' + amount.toLocaleString('zh-TW');
+        }
+
+        // --- CART LOGIC ---
+
+        /**
+         * Adds an item to the cart or increments its quantity.
+         * @param {string} itemId The ID of the item to add.
+         */
+        function addToCart(itemId) {
+            const item = menuData.find(i => i.id === itemId);
+            if (!item) return;
+
+            if (cart[itemId]) {
+                cart[itemId].quantity += 1;
+            } else {
+                cart[itemId] = { ...item, quantity: 1 }; 
+            }
+
+            updateCartDisplay();
+            showNotification(`${item.name} 已加入購物車`, 'success');
+        }
+
+        /**
+         * Decrements the quantity of an item or removes it if quantity reaches 0.
+         * @param {string} itemId The ID of the item to remove.
+         */
+        function removeFromCart(itemId) {
+            if (cart[itemId]) {
+                cart[itemId].quantity -= 1;
+                if (cart[itemId].quantity <= 0) {
+                    delete cart[itemId];
+                }
+                updateCartDisplay();
+            }
+        }
+
+        /**
+         * Updates the cart badge count and total in the UI.
+         */
+        function updateCartDisplay() {
+            const cartItems = Object.values(cart);
+            const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+            const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
+
+            document.getElementById('cart-count').textContent = totalItems;
+            document.getElementById('cart-total-amount').textContent = formatCurrency(totalAmount);
+
+            // Update modal content if it's open
+            renderCartModalContent();
+        }
+
+        /**
+         * Renders the cart contents inside the modal.
+         */
+        function renderCartModalContent() {
+            const cartList = document.getElementById('cart-list');
+            const cartItems = Object.values(cart);
+
+            let html = '';
+
+            if (cartItems.length === 0) {
+                html = '<p class="text-gray-500 text-center py-8">購物車是空的，快去點餐吧！</p>';
+                document.getElementById('checkout-button').disabled = true;
+                document.getElementById('checkout-button').classList.add('opacity-50', 'cursor-not-allowed');
+                document.getElementById('customer-input-container').classList.add('hidden'); // Hide input if cart is empty
+            } else {
+                document.getElementById('checkout-button').disabled = false;
+                document.getElementById('checkout-button').classList.remove('opacity-50', 'cursor-not-allowed');
+                document.getElementById('customer-input-container').classList.remove('hidden'); // Show input if cart has items
+
+                cartItems.forEach(item => {
+                    html += `
+                        <div class="flex items-center justify-between p-4 border-b border-orange-100 last:border-b-0">
+                            <div class="flex-1 min-w-0">
+                                <p class="font-semibold text-lg text-gray-800 truncate">${item.name}</p>
+                                <p class="text-orange-500">${formatCurrency(item.price)} x ${item.quantity} = ${formatCurrency(item.price * item.quantity)}</p>
+                            </div>
+                            <div class="flex items-center space-x-2 ml-4">
+                                <button onclick="removeFromCart('${item.id}')" class="w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition duration-150 active:scale-95">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M5 10a1 1 0 011-1h8a1 1 0 110 2H6a1 1 0 01-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                <span class="font-bold text-gray-800 w-6 text-center">${item.quantity}</span>
+                                <button onclick="addToCart('${item.id}')" class="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200 transition duration-150 active:scale-95">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            cartList.innerHTML = html;
+        }
+
+        // --- ORDER SUBMISSION AND LINE INTEGRATION ---
+
+        /**
+         * Submits the current cart as a new order to Firestore and generates a LINE message.
+         */
+        async function submitOrder() {
+            // 1. Get customer information from the modal input
+            const customerName = document.getElementById('customer-name-input').value.trim();
+            const customerNote = document.getElementById('customer-note-input').value.trim() || '無';
+            
+            // 2. Basic Validation
+            if (Object.keys(cart).length === 0) {
+                showNotification('購物車是空的，無法送出訂單', 'error');
+                return;
+            }
+            if (!customerName) {
+                showNotification('請輸入姓名或桌號 (必填欄位)！', 'error');
+                document.getElementById('customer-name-input').focus();
+                return;
+            }
+
+            const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.price, 0);
+            let docRefId = 'N/A (本地模式)'; // Default ID before submission
+
+            document.getElementById('loading-overlay').classList.remove('hidden');
+
+            // 3. Firestore Submission (Record the order for history/backup)
+            if (window.isFirebaseReady && window.db && window.currentUserId) {
+                const orderData = {
+                    userId: window.currentUserId,
+                    appId: window.appId,
+                    customerName: customerName,
+                    customerNote: customerNote,
+                    items: Object.values(cart).map(item => ({
+                        id: item.id,
+                        name: item.name,
+                        price: item.price,
+                        quantity: item.quantity,
+                        subtotal: item.price * item.quantity
+                    })),
+                    totalAmount: totalAmount,
+                    status: 'Pending', // 待處理
+                    createdAt: window.serverTimestamp()
+                };
+
+                // Private collection path for orders: artifacts/{appId}/users/{userId}/orders
+                const path = `artifacts/${window.appId}/users/${window.currentUserId}/orders`;
+
+                try {
+                    const docRef = await window.addDoc(window.collection(window.db, path), orderData);
+                    docRefId = docRef.id;
+                    showNotification(`訂單已備份至雲端 (ID: ${docRefId})`, 'success');
+
+                } catch (e) {
+                    console.error("Error adding document: ", e);
+                    showNotification(`雲端備份失敗：${e.message}。訂單將透過 LINE 傳送。`, 'error');
+                }
+            } else {
+                 showNotification(`雲端備份已跳過 (本地運行模式)。`, 'error');
+            }
+
+
+            // 4. Generate formatted message for LINE
+            let messageText = `【珍香小館 - 新訂單】\n`;
+            messageText += `==========================\n`;
+            messageText += `👤 訂購人/桌號: ${customerName}\n`;
+            messageText += `📝 備註: ${customerNote}\n`;
+            messageText += `--------------------------\n`;
+            messageText += `💰 總金額: ${formatCurrency(totalAmount)}\n`;
+            messageText += `📜 訂單詳情:\n`;
+
+            Object.values(cart).forEach(item => {
+                messageText += ` > ${item.name} x ${item.quantity} (${formatCurrency(item.price * item.quantity)})\n`;
+            });
+
+            messageText += `--------------------------\n`;
+            messageText += `(參考ID: ${docRefId}) 請傳送給 LINE ID: joe690130`;
+
+            // 5. Create the LINE message URL
+            const lineMessage = encodeURIComponent(messageText);
+            const lineUrl = `https://line.me/R/share?text=${lineMessage}`;
+
+            // Open the LINE link in a new window/tab for manual delivery
+            window.open(lineUrl, '_blank');
+            
+            // 6. Reset UI and display success
+            document.getElementById('customer-name-input').value = ''; 
+            document.getElementById('customer-note-input').value = ''; 
+            cart = {};
+            updateCartDisplay();
+            toggleCartModal(false);
+
+            document.getElementById('loading-overlay').classList.add('hidden');
+            showNotification(`請切換至 LINE 視窗手動傳送訊息給 joe690130 完成訂購！`, 'success');
+        }
+
+
+        // --- UI RENDERING ---
+
+        /**
+         * Renders the menu items grouped by category.
+         */
+        function renderMenu() {
+            const menuContainer = document.getElementById('menu-container');
+            // Define display order for categories
+            const categoryOrder = ['炒飯類', '蓋飯/燴飯', '精緻套餐', '麵類', '鍋燒類', '飯類', '泡菜類', '單點小炒', '湯類'];
+            const categories = categoryOrder.filter(c => menuData.some(item => item.category === c));
+            let html = '';
+
+            categories.forEach(category => {
+                const items = menuData.filter(item => item.category === category);
+
+                html += `
+                    <div id="${category}" class="mt-8 pt-4 border-t border-orange-200">
+                        <h2 class="text-3xl font-extrabold text-gray-800 mb-6 border-l-4 border-orange-500 pl-4">${category}</h2>
+                        <!-- Responsive grid for menu items -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                `;
+
+                items.forEach(item => {
+                    html += `
+                        <div class="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition duration-200 flex flex-col justify-between">
+                            
+                            <!-- Content Section -->
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold text-gray-800 mb-1">${item.name}</h3>
+                                <p class="text-sm text-gray-500 mb-3">${item.description}</p>
+                            </div>
+                            
+                            <!-- Price and Button Section -->
+                            <div class="flex justify-between items-center mt-2 border-t pt-2">
+                                <span class="text-2xl font-extrabold text-orange-600">${formatCurrency(item.price)}</span>
+                                <button onclick="addToCart('${item.id}')"
+                                    class="px-4 py-2 bg-orange-500 text-white font-semibold rounded-full shadow-md hover:bg-orange-600 transition duration-150 active:scale-95 flex items-center space-x-1 text-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                                    </svg>
+                                    <span>點餐</span>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div></div>';
+            });
+
+            menuContainer.innerHTML = html;
+        }
+
+        /**
+         * Toggles the visibility of the cart modal.
+         * @param {boolean} show Whether to show or hide the modal.
+         */
+        function toggleCartModal(show) {
+            const modal = document.getElementById('cart-modal');
+            if (show) {
+                renderCartModalContent(); // Refresh content before showing
+                modal.classList.remove('hidden');
+                setTimeout(() => { // Add transition effect
+                    modal.querySelector('.modal-content').classList.remove('opacity-0', 'translate-y-4');
+                    modal.classList.add('bg-black', 'bg-opacity-50');
+                }, 10);
+            } else {
+                modal.querySelector('.modal-content').classList.add('opacity-0', 'translate-y-4');
+                modal.classList.remove('bg-black', 'bg-opacity-50');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+
+
+        // --- INITIALIZATION ---
+        window.onload = async () => {
+            // 1. 嘗試初始化 Firebase (在本地會失敗，但這是預期的)
+            await window.initializeFirebase();
+            
+            // 2. 無論 Firebase 連線成功與否，都強制顯示菜單，解決卡住問題
+            renderMenu(); 
+            
+            // 3. 確保購物車數量正確顯示
+            updateCartDisplay();
+        };
+
+        // Expose functions globally for HTML event handlers
+        window.addToCart = addToCart;
+        window.removeFromCart = removeFromCart;
+        window.toggleCartModal = toggleCartModal;
+        window.submitOrder = submitOrder;
+    </script>
+</head>
+<body class="min-h-screen">
+
+    <!-- Header & Navigation -->
+    <header class="sticky top-0 bg-white shadow-lg z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+            <h1 class="text-3xl font-extrabold text-orange-600 tracking-tight">
+                珍香小館
+                <span class="text-sm text-gray-500 font-normal block">線上點餐服務</span>
+            </h1>
+
+            <div class="flex items-center space-x-4">
+                <!-- User ID Display (for debug/tracking) -->
+                <span id="user-info" class="text-xs text-gray-500 hidden sm:block">載入用戶中...</span>
+
+                <!-- Shopping Cart Button -->
+                <button onclick="toggleCartModal(true)"
+                    class="relative p-3 bg-orange-500 rounded-full text-white shadow-xl hover:bg-orange-600 transition duration-150 active:scale-95">
+                    <!-- Icon: Shopping Cart -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <!-- Cart Count Badge -->
+                    <span id="cart-count" class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform bg-red-600 rounded-full">0</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content: Menu -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <p class="text-lg text-gray-600 mb-6 border-b pb-4">
+            請點選您想點的品項。點餐完成後，請於結帳頁面填寫姓名/桌號，並點擊送出按鈕。
+        </p>
+
+        <!-- Menu Container (Content rendered by JavaScript) -->
+        <div id="menu-container">
+            <!-- Loading message or initial content -->
+            <div class="text-center py-20 text-gray-500">
+                <p>菜單載入中...</p>
+                <div class="mt-4 animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Cart Modal (Checkout Pop-up) -->
+    <div id="cart-modal" class="fixed inset-0 hidden z-40 transition-all duration-300" onclick="if(event.target.id === 'cart-modal') toggleCartModal(false)">
+        <div class="flex items-center justify-center min-h-screen px-4 py-8">
+            <!-- Modal Content -->
+            <div class="modal-content bg-white w-full max-w-lg rounded-xl shadow-2xl transform transition-all duration-300 opacity-0 translate-y-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+                
+                <!-- Modal Header -->
+                <div class="flex justify-between items-center p-6 bg-orange-500 rounded-t-xl">
+                    <h3 id="modal-title" class="text-2xl font-bold text-white">您的訂單</h3>
+                    <button onclick="toggleCartModal(false)" class="text-white hover:text-orange-100 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body: Cart Items -->
+                <div id="cart-list" class="max-h-96 overflow-y-auto divide-y divide-gray-100">
+                    <!-- Cart items rendered here by JS -->
+                </div>
+
+                <!-- Customer Details Input -->
+                <div id="customer-input-container" class="p-6 border-t border-gray-100 space-y-3 hidden">
+                    <input type="text" id="customer-name-input" placeholder="請輸入姓名/桌號 (必填)" required
+                        class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" />
+                    <textarea id="customer-note-input" placeholder="訂單備註 (例：少冰、不加蔥、打包)"
+                        class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition h-20 resize-none"></textarea>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="p-6 pt-0">
+                    <div class="flex justify-between items-center text-2xl font-bold mb-4">
+                        <span>總計金額:</span>
+                        <span id="cart-total-amount" class="text-orange-600">$0</span>
+                    </div>
+                    <!-- Checkout Button: Triggers Firestore save and LINE Share link generation -->
+                    <button id="checkout-button" onclick="submitOrder()"
+                        class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99] disabled:opacity-50 disabled:cursor-not-allowed">
+                        送出訂單 & 通知 LINE ID: joe690130
+                    </button>
+                    <p class="text-center text-sm text-gray-500 mt-2">
+                        **送出後將跳出 LINE 視窗，請點擊傳送給 joe690130 完成通知**
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Notification Box -->
+    <div id="notification" class="fixed bottom-5 right-5 p-4 rounded-lg shadow-xl text-white opacity-0 hidden z-50"></div>
+
+    <!-- Global Loading Indicator -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-lg shadow-2xl flex items-center space-x-3">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
+            <span class="text-gray-700 font-semibold">訂單處理中，請稍候...</span>
+        </div>
+    </div>
+</body>
+</html>
