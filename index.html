@@ -507,7 +507,7 @@
         function renderMenu() {
             const menuContainer = document.getElementById('menu-container');
             const categoryOrder = [
-                '炒飯類', '蓋飯', '炒麵/烏龍', '燴飯類', '韓式泡菜類', 
+                '炒飯類', '蓋飯/燴飯', '炒麵/烏龍', '飯類/快炒', '韓式泡菜類', 
                 '鍋燒類', '精緻套餐', '單點/小菜', '湯類'
             ];
             const categories = categoryOrder.filter(c => menuData.some(item => item.category === c));
@@ -726,6 +726,7 @@
     </div>
 </body>
 </html>
+
 
 
 
