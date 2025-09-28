@@ -116,7 +116,7 @@
             { id: 'FR5', name: '培根蛋炒飯', price: 75, category: '炒飯類', description: '培根香氣，口感豐富' },
             { id: 'FR6', name: '雞肉蛋炒飯', price: 75, category: '炒飯類', description: '鮮嫩雞肉，家常美味' },
             { id: 'FR7', name: '宮保雞丁炒飯', price: 80, category: '炒飯類', description: '微辣宮保醬汁' },
-            { id: 'FR8', name: '麻油雞丁炒飯', price: 80, category: '炒飯類', description: '麻油香氣，口感豐富' },
+            { id: 'FR8', name: '麻油雞丁蛋炒飯', price: 80, category: '炒飯類', description: '濃郁麻油香，滋補溫暖' },
             { id: 'FR9', name: '青椒肉絲炒飯', price: 80, category: '炒飯類', description: '青椒肉絲，香氣四溢' },
             { id: 'FR10', name: '牛肉蛋炒飯', price: 85, category: '炒飯類', description: '鮮嫩牛肉，風味濃郁' },
             { id: 'FR11', name: '青椒牛肉蛋炒飯', price: 90, category: '炒飯類', description: '青椒牛肉，大份滿足' },
@@ -152,7 +152,7 @@
             { id: 'WR8', name: '紅燒豆腐燴飯', price: 75, category: '飯類/快炒', description: '紅燒豆腐醬，附白飯' },
 
             // --- 韓式泡菜類 (Kimchi Dishes) ---
-            { id: 'KC1', name: '泡菜豬肉炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜炒豬肉，附白飯' },
+            { id: 'KC1', name: '泡菜豬肉炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜炒豬肉' },
             { id: 'KC2', name: '泡菜蝦仁炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜風味炒飯' },
             { id: 'KC3', name: '泡菜香腸炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與香腸' },
             { id: 'KC4', name: '泡菜雞肉炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與雞肉丁' },
@@ -209,7 +209,7 @@
             { id: 'SD21', name: '九層塔蛋', price: 40, category: '單點/小菜', description: '九層塔香氣十足' }, // 圖片上有兩次九層塔蛋，保留一個
         ];
 
-        let cart = {}; // { uniqueKey: { item, quantity, isExtra, price, uniqueKey } }
+        let cart = {}; // { uniqueKey: { item, quantity, isExtra, isSpicy, noGreenOnion, price, uniqueKey } }
         let currentSelectedItem = null; // 當前在 Options Modal 中選擇的項目
 
         // --- UTILITY FUNCTIONS ---
@@ -257,7 +257,12 @@
             document.getElementById('item-modal-price').textContent = formatCurrency(item.price);
             document.getElementById('item-modal-extra-charge').textContent = `(加量費用 ${formatCurrency(EXTRA_CHARGE)})`;
             document.getElementById('item-quantity-input').value = 1;
+            
+            // Reset all checkboxes
             document.getElementById('item-extra-checkbox').checked = false;
+            document.getElementById('item-spicy-checkbox').checked = false;
+            document.getElementById('item-no-green-onion-checkbox').checked = false; // 修正：重置「不加蔥」選項
+
 
             // Show the modal
             toggleOptionsModal(true);
@@ -271,13 +276,16 @@
 
             const quantity = parseInt(document.getElementById('item-quantity-input').value, 10);
             const isExtra = document.getElementById('item-extra-checkbox').checked;
+            const isSpicy = document.getElementById('item-spicy-checkbox').checked; 
+            const noGreenOnion = document.getElementById('item-no-green-onion-checkbox').checked; // 修正：取得「不加蔥」狀態
 
             if (quantity < 1) {
                 showNotification('數量至少為 1', 'error');
                 return;
             }
 
-            const uniqueKey = `${currentSelectedItem.id}-${isExtra}`;
+            // 更新 uniqueKey 以包含所有選項
+            const uniqueKey = `${currentSelectedItem.id}-${isExtra}-${isSpicy}-${noGreenOnion}`;
             const finalPrice = currentSelectedItem.price + (isExtra ? EXTRA_CHARGE : 0);
 
             if (cart[uniqueKey]) {
@@ -290,6 +298,8 @@
                     finalPrice: finalPrice, // Price with extra charge
                     quantity: quantity, 
                     isExtra: isExtra,
+                    isSpicy: isSpicy,
+                    noGreenOnion: noGreenOnion, // 修正：儲存「不加蔥」
                     uniqueKey: uniqueKey
                 };
             }
@@ -297,7 +307,13 @@
             // Close modal and update display
             toggleOptionsModal(false);
             updateCartDisplay();
-            showNotification(`${currentSelectedItem.name} (${isExtra ? '加量' : '一般'}) x${quantity} 已加入購物車`, 'success');
+            
+            // 構建通知訊息
+            let optionsText = isExtra ? '加量' : '一般份量';
+            if (isSpicy) optionsText += ', 加辣';
+            if (noGreenOnion) optionsText += ', 不加蔥'; // 修正：更新通知
+
+            showNotification(`${currentSelectedItem.name} (${optionsText}) x${quantity} 已加入購物車`, 'success');
             currentSelectedItem = null;
         }
         
@@ -340,29 +356,36 @@
             let html = '';
             const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
             
-            // 更新總金額顯示，即使在購物車為空時也保持 $0
             document.getElementById('cart-total-amount').textContent = formatCurrency(totalAmount);
-
 
             if (cartItems.length === 0) {
                 html = '<p class="text-gray-500 text-center py-8">購物車是空的，快去點餐吧！</p>';
                 document.getElementById('checkout-button').disabled = true;
                 document.getElementById('checkout-button').classList.add('opacity-50', 'cursor-not-allowed');
-                // 當購物車為空時，隱藏輸入框容器
                 document.getElementById('customer-input-container').classList.add('hidden'); 
             } else {
                 document.getElementById('checkout-button').disabled = false;
                 document.getElementById('checkout-button').classList.remove('opacity-50', 'cursor-not-allowed');
-                document.getElementById('customer-input-container').classList.remove('hidden'); // 購物車有東西時顯示輸入框
+                document.getElementById('customer-input-container').classList.remove('hidden');
 
                 cartItems.forEach(item => {
-                    const optionText = item.isExtra ? '<span class="text-red-500">(加量+$10)</span>' : '<span class="text-gray-400">(一般)</span>';
+                    // 組合所有選項的顯示文字
+                    let optionText = item.isExtra ? '<span class="text-red-500 font-medium">加量+$10</span>' : '<span class="text-gray-400 font-normal">一般份量</span>';
+                    if (item.isSpicy) {
+                        optionText += ' / <span class="text-red-600 font-medium">加辣🌶️</span>';
+                    }
+                    // 修正：顯示「不加蔥」
+                    if (item.noGreenOnion) {
+                        optionText += ' / <span class="text-gray-600 font-medium">不加蔥🌿</span>';
+                    }
+
                     const subtotal = item.finalPrice * item.quantity;
                     
                     html += `
                         <div class="flex items-center justify-between p-4 border-b border-orange-100 last:border-b-0">
                             <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-lg text-gray-800 truncate">${item.name} ${optionText}</p>
+                                <p class="font-semibold text-lg text-gray-800 truncate">${item.name}</p>
+                                <p class="text-sm text-gray-500">${optionText}</p>
                                 <p class="text-orange-500">${formatCurrency(item.finalPrice)} x ${item.quantity} = ${formatCurrency(subtotal)}</p>
                             </div>
                             <div class="flex items-center space-x-2 ml-4">
@@ -372,7 +395,6 @@
                                     </svg>
                                 </button>
                                 <span class="font-bold text-gray-800 w-6 text-center">${item.quantity}</span>
-                                <!-- For simplicity, clicking + will open the full option modal again -->
                                 <button onclick="openItemOptions('${item.id}')" class="w-8 h-8 flex items-center justify-center bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200 transition duration-150 active:scale-95">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                         <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
@@ -383,65 +405,61 @@
                     `;
                 });
             }
-
             cartList.innerHTML = html;
         }
 
         // --- ORDER SUBMISSION AND LINE INTEGRATION ---
 
-        /**
-         * Submits the current cart as a new order to Firestore and generates a LINE message.
-         */
         async function submitOrder() {
-            // 1. Get customer information from the modal input
-            const customerName = document.getElementById('customer-name-input').value.trim();
-            const customerNote = document.getElementById('customer-note-input').value.trim() || '無';
+            // 修正：取得外送資訊和送達時間
+            const deliveryInfo = document.getElementById('delivery-info-input').value.trim();
+            const deliveryTime = document.getElementById('delivery-time-input').value.trim() || '盡快送達';
             
-            // 2. Basic Validation
             if (Object.keys(cart).length === 0) {
                 showNotification('購物車是空的，無法送出訂單', 'error');
                 return;
             }
-            if (!customerName) {
-                showNotification('請輸入姓名或桌號 (必填欄位)！', 'error');
-                document.getElementById('customer-name-input').focus();
+            // 修正：驗證新的輸入欄位
+            if (!deliveryInfo) {
+                showNotification('請輸入公司/電話/地址 (必填欄位)！', 'error');
+                document.getElementById('delivery-info-input').focus();
                 return;
             }
 
             const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
-            let docRefId = 'N/A (離線模式)'; // Default ID before submission
+            let docRefId = 'N/A (離線模式)';
 
             document.getElementById('loading-overlay').classList.remove('hidden');
 
-            // 3. Firestore Submission (Record the order for history/backup)
             if (window.isFirebaseReady && window.db && window.currentUserId) {
                 const orderData = {
                     userId: window.currentUserId,
                     appId: window.appId,
-                    customerName: customerName,
-                    customerNote: customerNote,
+                    deliveryInfo: deliveryInfo, // 修正
+                    deliveryTime: deliveryTime, // 修正
                     items: Object.values(cart).map(item => ({
                         id: item.id,
                         name: item.name,
-                        option: item.isExtra ? '加量' : '一般',
+                        option: `${item.isExtra ? '加量' : '一般'}${item.isSpicy ? '/加辣' : ''}${item.noGreenOnion ? '/不加蔥' : ''}`, 
+                        isExtra: item.isExtra,
+                        isSpicy: item.isSpicy,
+                        noGreenOnion: item.noGreenOnion, // 修正
                         basePrice: item.price,
-                        finalPrice: item.finalPrice, // Price with option
+                        finalPrice: item.finalPrice,
                         quantity: item.quantity,
                         subtotal: item.finalPrice * item.quantity
                     })),
                     totalAmount: totalAmount,
-                    status: 'Pending', // 待處理
+                    status: 'Pending',
                     createdAt: window.serverTimestamp()
                 };
 
-                // Private collection path for orders: artifacts/{appId}/users/{userId}/orders
                 const path = `artifacts/${window.appId}/users/${window.currentUserId}/orders`;
 
                 try {
                     const docRef = await window.addDoc(window.collection(window.db, path), orderData);
                     docRefId = docRef.id;
                     showNotification(`訂單已備份至雲端 (ID: ${docRefId})`, 'success');
-
                 } catch (e) {
                     console.error("Error adding document: ", e);
                     showNotification(`雲端備份失敗：${e.message}。訂單將透過 LINE 傳送。`, 'error');
@@ -450,35 +468,33 @@
                  showNotification(`雲端備份已跳過 (離線模式)。`, 'error');
             }
 
-
-            // 4. Generate formatted message for LINE
+            // 修正：更新 LINE 訊息格式
             let messageText = `【珍香小館 - 新訂單】\n`;
             messageText += `==========================\n`;
-            messageText += `👤 公司/電話/地址: ${customerName}\n`;
-            messageText += `📝 備註: ${customerNote}\n`;
+            messageText += `📍 外送資訊: ${deliveryInfo}\n`;
+            messageText += `⏰ 希望送達時間: ${deliveryTime}\n`;
             messageText += `--------------------------\n`;
             messageText += `💰 總金額: ${formatCurrency(totalAmount)}\n`;
             messageText += `📜 訂單詳情:\n`;
 
             Object.values(cart).forEach(item => {
-                const optionText = item.isExtra ? ' (加量)' : '';
+                let optionText = item.isExtra ? ' (加量+$10)' : '';
+                if (item.isSpicy) optionText += ' (加辣)';
+                if (item.noGreenOnion) optionText += ' (不加蔥)'; // 修正
+
                 messageText += ` > ${item.name}${optionText} x ${item.quantity} (${formatCurrency(item.finalPrice * item.quantity)})\n`;
             });
 
             messageText += `--------------------------\n`;
-            // 🚨 步驟二：請將 joe690130 替換成您的 LINE ID 🚨
             messageText += `(參考ID: ${docRefId}) 請傳送給 LINE ID: joe690130`;
 
-            // 5. Create the LINE message URL
             const lineMessage = encodeURIComponent(messageText);
             const lineUrl = `https://line.me/R/share?text=${lineMessage}`;
 
-            // Open the LINE link in a new window/tab for manual delivery
             window.open(lineUrl, '_blank');
             
-            // 6. Reset UI and display success
-            document.getElementById('customer-name-input').value = ''; 
-            document.getElementById('customer-note-input').value = ''; 
+            document.getElementById('delivery-info-input').value = ''; 
+            document.getElementById('delivery-time-input').value = ''; 
             cart = {};
             updateCartDisplay();
             toggleCartModal(false);
@@ -487,15 +503,9 @@
             showNotification(`請切換至 LINE 視窗手動傳送訊息給 joe690130 完成通知！`, 'success');
         }
 
-
         // --- UI RENDERING ---
-
-        /**
-         * Renders the menu items grouped by category.
-         */
         function renderMenu() {
             const menuContainer = document.getElementById('menu-container');
-            // Define display order for categories
             const categoryOrder = [
                 '炒飯類', '蓋飯/燴飯', '炒麵/烏龍', '飯類/快炒', '韓式泡菜類', 
                 '鍋燒類', '精緻套餐', '單點/小菜', '湯類'
@@ -505,28 +515,20 @@
 
             categories.forEach(category => {
                 const items = menuData.filter(item => item.category === category);
-
                 html += `
                     <div id="${category}" class="mt-8 pt-4 border-t border-orange-200">
                         <h2 class="text-3xl font-extrabold text-gray-800 mb-6 border-l-4 border-orange-500 pl-4">${category}</h2>
-                        <!-- Responsive grid for menu items -->
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 `;
-
                 items.forEach(item => {
                     html += `
                         <div class="bg-white rounded-xl p-4 shadow-md hover:shadow-lg transition duration-200 flex flex-col justify-between">
-                            
-                            <!-- Content Section -->
                             <div class="flex-1">
                                 <h3 class="text-xl font-bold text-gray-800 mb-1">${item.name}</h3>
                                 <p class="text-sm text-gray-500 mb-3">${item.description}</p>
                             </div>
-                            
-                            <!-- Price and Button Section -->
                             <div class="flex justify-between items-center mt-2 border-t pt-2">
                                 <span class="text-2xl font-extrabold text-orange-600">${formatCurrency(item.price)}</span>
-                                <!-- CHANGED: Now opens the options modal -->
                                 <button onclick="openItemOptions('${item.id}')"
                                     class="px-4 py-2 bg-orange-500 text-white font-semibold rounded-full shadow-md hover:bg-orange-600 transition duration-150 active:scale-95 flex items-center space-x-1 text-sm">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -538,23 +540,17 @@
                         </div>
                     `;
                 });
-
                 html += '</div></div>';
             });
-
             menuContainer.innerHTML = html;
         }
 
-        /**
-         * Toggles the visibility of the main cart modal.
-         * @param {boolean} show Whether to show or hide the modal.
-         */
         function toggleCartModal(show) {
             const modal = document.getElementById('cart-modal');
             if (show) {
-                renderCartModalContent(); // Refresh content before showing
+                renderCartModalContent();
                 modal.classList.remove('hidden');
-                setTimeout(() => { // Add transition effect
+                setTimeout(() => {
                     modal.querySelector('.modal-content').classList.remove('opacity-0', 'translate-y-4');
                     modal.classList.add('bg-black', 'bg-opacity-50');
                 }, 10);
@@ -565,10 +561,6 @@
             }
         }
         
-        /**
-         * Toggles the visibility of the item options modal.
-         * @param {boolean} show Whether to show or hide the modal.
-         */
         function toggleOptionsModal(show) {
             const modal = document.getElementById('item-options-modal');
             if (show) {
@@ -584,25 +576,19 @@
             }
         }
 
-
         // --- INITIALIZATION ---
         window.onload = async () => {
-            // 1. 嘗試初始化 Firebase 
             await window.initializeFirebase();
-            
-            // 2. 無論 Firebase 連線成功與否，都強制顯示菜單
             renderMenu(); 
-            
-            // 3. 確保購物車數量正確顯示
             updateCartDisplay();
         };
 
-        // Expose functions globally for HTML event handlers
+        // Expose functions globally
         window.openItemOptions = openItemOptions;
         window.addItemToCart = addItemToCart;
         window.removeFromCart = removeFromCart;
         window.toggleCartModal = toggleCartModal;
-        window.toggleOptionsModal = toggleOptionsModal; // For closing the options modal
+        window.toggleOptionsModal = toggleOptionsModal;
         window.submitOrder = submitOrder;
     </script>
 </head>
@@ -615,19 +601,12 @@
                 珍香小館
                 <span class="text-sm text-gray-500 font-normal block">線上點餐服務</span>
             </h1>
-
             <div class="flex items-center space-x-4">
-                <!-- User ID Display (for debug/tracking) -->
                 <span id="user-info" class="text-xs text-gray-500 hidden sm:block">載入用戶中...</span>
-
-                <!-- Shopping Cart Button -->
-                <button onclick="toggleCartModal(true)"
-                    class="relative p-3 bg-orange-500 rounded-full text-white shadow-xl hover:bg-orange-600 transition duration-150 active:scale-95">
-                    <!-- Icon: Shopping Cart -->
+                <button onclick="toggleCartModal(true)" class="relative p-3 bg-orange-500 rounded-full text-white shadow-xl hover:bg-orange-600 transition duration-150 active:scale-95">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                    <!-- Cart Count Badge -->
                     <span id="cart-count" class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 transform bg-red-600 rounded-full">0</span>
                 </button>
             </div>
@@ -637,12 +616,9 @@
     <!-- Main Content: Menu -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <p class="text-lg text-gray-600 mb-6 border-b pb-4">
-            請點選您想點的品項。點餐時可選擇是否 **加量 (+${EXTRA_CHARGE}元)**。
+            請點選您想點的品項。點餐時可選擇 **加量 (+$${EXTRA_CHARGE})**、**加辣**、**不加蔥** 等選項。
         </p>
-
-        <!-- Menu Container (Content rendered by JavaScript) -->
         <div id="menu-container">
-            <!-- Loading message or initial content -->
             <div class="text-center py-20 text-gray-500">
                 <p>菜單載入中...</p>
                 <div class="mt-4 animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto"></div>
@@ -650,13 +626,10 @@
         </div>
     </main>
     
-    <!-- Item Options Modal (NEW FEATURE) -->
+    <!-- Item Options Modal -->
     <div id="item-options-modal" class="fixed inset-0 hidden z-50 transition-all duration-300" onclick="if(event.target.id === 'item-options-modal') toggleOptionsModal(false)">
         <div class="flex items-center justify-center min-h-screen px-4 py-8">
-            <!-- Modal Content -->
-            <div class="modal-content bg-white w-full max-w-sm rounded-xl shadow-2xl transform transition-all duration-300 opacity-0 scale-95" role="dialog" aria-modal="true" aria-labelledby="item-modal-title">
-                
-                <!-- Modal Header -->
+            <div class="modal-content bg-white w-full max-w-sm rounded-xl shadow-2xl transform transition-all duration-300 opacity-0 scale-95" role="dialog">
                 <div class="flex justify-between items-center p-4 bg-orange-500 rounded-t-xl">
                     <h3 id="item-modal-title" class="text-xl font-bold text-white">品項名稱</h3>
                     <button onclick="toggleOptionsModal(false)" class="text-white hover:text-orange-100 transition">
@@ -665,21 +638,14 @@
                         </svg>
                     </button>
                 </div>
-
-                <!-- Modal Body: Options -->
                 <div class="p-6 space-y-4">
                     <div class="text-lg font-semibold text-gray-700">
                         單價: <span id="item-modal-price" class="text-orange-600"></span>
                     </div>
-
-                    <!-- Quantity Selector -->
                     <div>
                         <label for="item-quantity-input" class="block text-sm font-medium text-gray-700 mb-1">選擇數量</label>
-                        <input type="number" id="item-quantity-input" value="1" min="1" max="99" 
-                            class="w-full p-3 border border-gray-300 rounded-lg text-center focus:ring-orange-500 focus:border-orange-500" />
+                        <input type="number" id="item-quantity-input" value="1" min="1" max="99" class="w-full p-3 border border-gray-300 rounded-lg text-center focus:ring-orange-500 focus:border-orange-500" />
                     </div>
-
-                    <!-- Extra Quantity Checkbox -->
                     <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <label for="item-extra-checkbox" class="flex items-center space-x-2 cursor-pointer">
                             <input type="checkbox" id="item-extra-checkbox" class="h-5 w-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500">
@@ -687,12 +653,24 @@
                         </label>
                         <span id="item-modal-extra-charge" class="text-red-500 font-bold text-sm">(加量費用 $10)</span>
                     </div>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <label for="item-spicy-checkbox" class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="item-spicy-checkbox" class="h-5 w-5 text-red-600 border-gray-300 rounded focus:ring-red-500">
+                            <span class="text-base font-semibold text-gray-800">是否加辣 🌶️</span>
+                        </label>
+                        <span class="text-gray-500 font-bold text-sm">(不加價)</span>
+                    </div>
+                    <!-- 修正：蔥花選項文字 -->
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <label for="item-no-green-onion-checkbox" class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="item-no-green-onion-checkbox" class="h-5 w-5 text-gray-600 border-gray-300 rounded focus:ring-gray-500">
+                            <span class="text-base font-semibold text-gray-800">是否不加蔥 🌿</span>
+                        </label>
+                        <span class="text-gray-500 font-bold text-sm">(不加價)</span>
+                    </div>
                 </div>
-
-                <!-- Modal Footer -->
                 <div class="p-4 border-t border-gray-100">
-                    <button onclick="addItemToCart()"
-                        class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99]">
+                    <button onclick="addItemToCart()" class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99]">
                         加入購物車
                     </button>
                 </div>
@@ -703,10 +681,7 @@
     <!-- Cart Modal (Checkout Pop-up) -->
     <div id="cart-modal" class="fixed inset-0 hidden z-40 transition-all duration-300" onclick="if(event.target.id === 'cart-modal') toggleCartModal(false)">
         <div class="flex items-center justify-center min-h-screen px-4 py-4 sm:py-8">
-            <!-- Modal Content: 使用 flex-col 佈局，最大高度限制為 90vh -->
-            <div class="modal-content bg-white w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl shadow-2xl transform transition-all duration-300 opacity-0 translate-y-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-                
-                <!-- Modal Header (固定不動) -->
+            <div class="modal-content bg-white w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl shadow-2xl transform transition-all duration-300 opacity-0 translate-y-4" role="dialog">
                 <div class="flex justify-between items-center p-6 bg-orange-500 rounded-t-xl flex-shrink-0">
                     <h3 id="modal-title" class="text-2xl font-bold text-white">您的訂單</h3>
                     <button onclick="toggleCartModal(false)" class="text-white hover:text-orange-100 transition">
@@ -715,51 +690,34 @@
                         </svg>
                     </button>
                 </div>
-
-                <!-- 🛠️ 修正 1：固定頂部區塊 (總計金額, 送出按鈕, 客戶資訊) - 始終可見 -->
                 <div class="p-6 pb-4 border-b border-gray-100 flex-shrink-0">
-                    <!-- 總計金額 -->
                     <div class="flex justify-between items-center text-2xl font-bold mb-4">
                         <span>總計金額:</span>
                         <span id="cart-total-amount" class="text-orange-600">$0</span>
                     </div>
-
-                    <!-- 送出訂單按鈕 (CTA) -->
-                    <button id="checkout-button" onclick="submitOrder()"
-                        class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99] disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button id="checkout-button" onclick="submitOrder()" class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99] disabled:opacity-50 disabled:cursor-not-allowed">
                         送出訂單 & 通知 LINE ID: joe690130
                     </button>
                     <p class="text-center text-sm text-gray-500 mt-2 mb-4">
                         **送出後將跳出 LINE 視窗，請點擊傳送給 joe690130 完成通知**
                     </p>
-
-                    <!-- 客戶資訊輸入 (姓名/備註) -->
+                    <!-- 修正：客戶資訊輸入欄位 -->
                     <div id="customer-input-container" class="space-y-3 border-t pt-4 hidden">
-                        <input type="text" id="customer-name-input" placeholder="請輸入公司/電話/地址 (必填)" required
-                            class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" />
-                        <textarea id="customer-note-input" placeholder="訂單備註 (例：加辣、不加蔥、其他)"
-                            class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition h-20 resize-none"></textarea>
+                        <input type="text" id="delivery-info-input" placeholder="輸入公司/電話/地址 (必填)" required class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" />
+                        <textarea id="delivery-time-input" placeholder="希望送達時間 (選填)" class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition h-20 resize-none"></textarea>
                     </div>
                 </div>
-
-                <!-- 🛠️ 修正 2：可滾動的身體區塊 (只包含訂單明細列表) -->
                 <div class="flex-grow overflow-y-auto">
-                    <!-- Modal Body: Cart Items -->
                     <div id="cart-list" class="divide-y divide-gray-100">
                         <!-- Cart items rendered here by JS -->
                     </div>
                 </div>
-
-                <!-- 原有的 Footer (現在已移除總計和按鈕) -->
-                <!-- 如果需要一個額外的底部留白，可以在此添加，但目前結構已不需要 -->
             </div>
         </div>
     </div>
 
-    <!-- Global Notification Box -->
+    <!-- Global Notification & Loading -->
     <div id="notification" class="fixed bottom-5 right-5 p-4 rounded-lg shadow-xl text-white opacity-0 hidden z-50"></div>
-
-    <!-- Global Loading Indicator -->
     <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center hidden">
         <div class="bg-white p-6 rounded-lg shadow-2xl flex items-center space-x-3">
             <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
@@ -768,7 +726,4 @@
     </div>
 </body>
 </html>
-
-
-
 
