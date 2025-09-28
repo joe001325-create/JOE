@@ -105,7 +105,6 @@
     </style>
     <script>
         // --- APP DATA AND STATE ---
-        // 🚨 根據您提供的圖片，已將所有菜單品項加入此處 🚨
         const EXTRA_CHARGE = 10; // 加量費用 NT$10
         
         const menuData = [
@@ -339,12 +338,17 @@
             const cartItems = Object.values(cart);
 
             let html = '';
+            const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
+            
+            // 更新總金額顯示，即使在購物車為空時也保持 $0
+            document.getElementById('cart-total-amount').textContent = formatCurrency(totalAmount);
+
 
             if (cartItems.length === 0) {
                 html = '<p class="text-gray-500 text-center py-8">購物車是空的，快去點餐吧！</p>';
                 document.getElementById('checkout-button').disabled = true;
                 document.getElementById('checkout-button').classList.add('opacity-50', 'cursor-not-allowed');
-                // 修正：當購物車為空時，隱藏輸入框容器
+                // 當購物車為空時，隱藏輸入框容器
                 document.getElementById('customer-input-container').classList.add('hidden'); 
             } else {
                 document.getElementById('checkout-button').disabled = false;
@@ -450,7 +454,7 @@
             // 4. Generate formatted message for LINE
             let messageText = `【珍香小館 - 新訂單】\n`;
             messageText += `==========================\n`;
-            messageText += `👤 訂購人/桌號: ${customerName}\n`;
+            messageText += `👤 公司/電話/地址: ${customerName}\n`;
             messageText += `📝 備註: ${customerNote}\n`;
             messageText += `--------------------------\n`;
             messageText += `💰 總金額: ${formatCurrency(totalAmount)}\n`;
@@ -699,7 +703,7 @@
     <!-- Cart Modal (Checkout Pop-up) -->
     <div id="cart-modal" class="fixed inset-0 hidden z-40 transition-all duration-300" onclick="if(event.target.id === 'cart-modal') toggleCartModal(false)">
         <div class="flex items-center justify-center min-h-screen px-4 py-4 sm:py-8">
-            <!-- 🛠️ 修正 1：對 Modal 內容區塊設置最大高度、Flex 佈局，並隱藏溢出內容 -->
+            <!-- Modal Content: 使用 flex-col 佈局，最大高度限制為 90vh -->
             <div class="modal-content bg-white w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl shadow-2xl transform transition-all duration-300 opacity-0 translate-y-4" role="dialog" aria-modal="true" aria-labelledby="modal-title">
                 
                 <!-- Modal Header (固定不動) -->
@@ -712,16 +716,25 @@
                     </button>
                 </div>
 
-                <!-- 🛠️ 修正 2：新增一個可滾動的身體區塊 (flex-grow 佔滿空間, overflow-y-auto 允許滾動) -->
-                <div class="flex-grow overflow-y-auto">
-                    <!-- Modal Body: Cart Items -->
-                    <!-- 移除 max-h-96, 讓 flex-grow 決定高度 -->
-                    <div id="cart-list" class="divide-y divide-gray-100">
-                        <!-- Cart items rendered here by JS -->
+                <!-- 🛠️ 修正 1：固定頂部區塊 (總計金額, 送出按鈕, 客戶資訊) - 始終可見 -->
+                <div class="p-6 pb-4 border-b border-gray-100 flex-shrink-0">
+                    <!-- 總計金額 -->
+                    <div class="flex justify-between items-center text-2xl font-bold mb-4">
+                        <span>總計金額:</span>
+                        <span id="cart-total-amount" class="text-orange-600">$0</span>
                     </div>
 
-                    <!-- Customer Details Input -->
-                    <div id="customer-input-container" class="p-6 border-t border-gray-100 space-y-3 hidden">
+                    <!-- 送出訂單按鈕 (CTA) -->
+                    <button id="checkout-button" onclick="submitOrder()"
+                        class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99] disabled:opacity-50 disabled:cursor-not-allowed">
+                        送出訂單 & 通知 LINE ID: joe690130
+                    </button>
+                    <p class="text-center text-sm text-gray-500 mt-2 mb-4">
+                        **送出後將跳出 LINE 視窗，請點擊傳送給 joe690130 完成通知**
+                    </p>
+
+                    <!-- 客戶資訊輸入 (姓名/備註) -->
+                    <div id="customer-input-container" class="space-y-3 border-t pt-4 hidden">
                         <input type="text" id="customer-name-input" placeholder="請輸入姓名/桌號 (必填)" required
                             class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" />
                         <textarea id="customer-note-input" placeholder="訂單備註 (例：少冰、不加蔥、打包)"
@@ -729,21 +742,16 @@
                     </div>
                 </div>
 
-                <!-- Modal Footer (固定不動 - flex-shrink-0) -->
-                <div class="p-6 pt-0 border-t border-gray-100 flex-shrink-0">
-                    <div class="flex justify-between items-center text-2xl font-bold mb-4">
-                        <span>總計金額:</span>
-                        <span id="cart-total-amount" class="text-orange-600">$0</span>
+                <!-- 🛠️ 修正 2：可滾動的身體區塊 (只包含訂單明細列表) -->
+                <div class="flex-grow overflow-y-auto">
+                    <!-- Modal Body: Cart Items -->
+                    <div id="cart-list" class="divide-y divide-gray-100">
+                        <!-- Cart items rendered here by JS -->
                     </div>
-                    <!-- Checkout Button: Triggers Firestore save and LINE Share link generation -->
-                    <button id="checkout-button" onclick="submitOrder()"
-                        class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99] disabled:opacity-50 disabled:cursor-not-allowed">
-                        送出訂單 & 通知 LINE ID: joe690130
-                    </button>
-                    <p class="text-center text-sm text-gray-500 mt-2">
-                        **送出後將跳出 LINE 視窗，請點擊傳送給 joe690130 完成通知**
-                    </p>
                 </div>
+
+                <!-- 原有的 Footer (現在已移除總計和按鈕) -->
+                <!-- 如果需要一個額外的底部留白，可以在此添加，但目前結構已不需要 -->
             </div>
         </div>
     </div>
