@@ -142,7 +142,6 @@
             { id: 'N7', name: '沙茶牛肉炒麵', price: 90, category: '炒麵/烏龍', description: '沙茶風味，濃郁香氣' },
             
             // --- 燴飯/快炒 (Gravy Rice / Wok-Fried Rice Dishes) ---
-            // 修正分類名稱為「燴飯/快炒」，並調整描述
             { id: 'WR1', name: '宮保雞丁燴飯', price: 75, category: '燴飯/快炒', description: '微辣宮保雞丁燴汁，配飯首選' },
             { id: 'WR2', name: '辣子雞丁燴飯', price: 75, category: '燴飯/快炒', description: '香辣夠味燴汁，開胃下飯' },
             { id: 'WR3', name: '三杯雞丁燴飯', price: 75, category: '燴飯/快炒', description: '九層塔香氣三杯燴汁，台灣味' },
@@ -168,10 +167,12 @@
             { id: 'NS1', name: '鍋燒意麵', price: 80, category: '鍋燒類', description: '經典意麵，豐富配料' },
             { id: 'NS2', name: '鍋燒冬粉', price: 80, category: '鍋燒類', description: '清爽冬粉，暖胃湯頭' },
             { id: 'NS3', name: '鍋燒烏龍麵', price: 80, category: '鍋燒類', description: 'Q彈烏龍麵，鮮美湯頭' },
+            // 修正: 將味噌馬龍麵改為味噌烏龍麵
             { id: 'NS4', name: '味噌烏龍麵', price: 80, category: '鍋燒類', description: '日式味噌湯頭' },
             { id: 'NS5', name: '鍋燒海鮮粥', price: 80, category: '鍋燒類', description: '新鮮海鮮，濃郁粥底' },
             
             // --- 精緻套餐 (Set Meals) ---
+            // 修正: 附白飯(無限量) 改為 附白飯(上限三碗)
             { id: 'SM1', name: '宮保雞丁套餐', price: 260, category: '精緻套餐', description: '附白飯(上限三碗)、三樣配菜及每日推薦湯' },
             { id: 'SM2', name: '三杯雞丁套餐', price: 260, category: '精緻套餐', description: '附白飯(上限三碗)、三樣配菜及每日推薦湯' },
             { id: 'SM3', name: '蔥爆豬套餐', price: 260, category: '精緻套餐', description: '附白飯(上限三碗)、三樣配菜及每日推薦湯' },
@@ -184,10 +185,12 @@
             { id: 'SP4', name: '魚丸湯', price: 35, category: '湯類', description: '鮮美魚丸，清爽不膩' },
             { id: 'SP5', name: '味噌蛤仔湯', price: 50, category: '湯類', description: '味噌與蛤蜊的結合' },
             { id: 'SP6', name: '蛤仔湯', price: 30, category: '湯類', description: '原味蛤蜊，鮮甜暖胃' },
-            { id: 'SP7', name: '蛤仔湯', price: 50, category: '湯類', description: '原味蛤蜊，鮮甜暖胃' },
+            // 修正: 筍仔湯改為蛤仔湯售價50元 (作為大份或升級選項)
+            { id: 'SP7', name: '鮮美蛤仔湯', price: 50, category: '湯類', description: '新鮮蛤蜊，升級份量或加料' },
 
             // --- 單點小炒 (Side Dishes) ---
-            { id: 'SD1', name: '時令青菜', price: 60, category: '單點/小菜', description: '新鮮時令蔬菜，請依現場時價，暫定60元' }, // 圖片標註時價
+            // 修正: 時令青菜暫定價改為40元
+            { id: 'SD1', name: '時令青菜', price: 40, category: '單點/小菜', description: '新鮮時令蔬菜，請依現場時價，暫定40元' },
             { id: 'SD2', name: '白飯', price: 10, category: '單點/小菜', description: '香Q白飯' },
             { id: 'SD3', name: '蔥花蛋', price: 40, category: '單點/小菜', description: '蔥花與蛋的完美結合' },
             { id: 'SD4', name: '九層塔蛋', price: 40, category: '單點/小菜', description: '九層塔香氣十足' },
@@ -507,7 +510,7 @@
         function renderMenu() {
             const menuContainer = document.getElementById('menu-container');
             const categoryOrder = [
-                '炒飯類', '蓋飯/燴飯', '炒麵/烏龍', '燴飯/快炒', '韓式泡菜類', // 修正順序與名稱
+                '炒飯類', '蓋飯/燴飯', '炒麵/烏龍', '燴飯/快炒', '韓式泡菜類', 
                 '鍋燒類', '精緻套餐', '單點/小菜', '湯類'
             ];
             const categories = categoryOrder.filter(c => menuData.some(item => item.category === c));
@@ -516,8 +519,11 @@
             categories.forEach(category => {
                 const items = menuData.filter(item => item.category === category);
                 html += `
-                    <div id="${category}" class="mt-8 pt-4 border-t border-orange-200">
-                        <h2 class="text-3xl font-extrabold text-gray-800 mb-6 border-l-4 border-orange-500 pl-4">${category}</h2>
+                    <div id="${category}" class="mt-8">
+                        <!-- 類別標題設計 - 字體放大, 加上橘色底色, 圓角與陰影 -->
+                        <h2 class="text-3xl sm:text-4xl font-extrabold text-orange-800 mb-6 bg-orange-200 p-4 rounded-xl shadow-md tracking-tight">
+                            ${category}
+                        </h2>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 `;
                 items.forEach(item => {
@@ -726,4 +732,3 @@
     </div>
 </body>
 </html>
-
