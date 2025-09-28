@@ -15,43 +15,54 @@
 
         // setLogLevel('Debug'); // 取消註釋此行可查看 Firebase 詳細日誌
 
-        // --- GLOBAL SETUP (Required by Canvas Environment) ---
+        // --- 🚨 步驟一：請在這裡貼上您自己的 Firebase 設定 🚨 ---
+        // 請務必從您的 Firebase 專案設定中取得以下金鑰。
+        // 如果您在 GitHub Pages 上運行但未填寫此處，網頁將進入「離線模式」，但 LINE 傳送功能仍可使用。
+        const YOUR_FIREBASE_CONFIG = {
+            apiKey: null, // <-- 請貼上您的 apiKey (例如: "AIzaSyC...")
+            authDomain: null, // <-- 請貼上您的 authDomain (例如: "your-project-id.firebaseapp.com")
+            projectId: null, // <-- 請貼上您的 projectId (例如: "your-project-id")
+            storageBucket: null,
+            messagingSenderId: null,
+            appId: null,
+            measurementId: null
+        };
+        // --------------------------------------------------------
+
+        // --- GLOBAL SETUP ---
         window.app = null;
         window.db = null;
         window.auth = null;
         window.currentUserId = null;
         window.isFirebaseReady = false; // 追蹤 Firebase 是否成功初始化
-        window.appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        // 在公開部署時，使用專案 ID 作為 app ID
+        window.appId = YOUR_FIREBASE_CONFIG.projectId || 'default-github-page-app'; 
 
         /**
          * Initializes Firebase services and authenticates the user.
          */
         async function initializeFirebase() {
-            const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-            
-            // 檢查是否在本地運行 (如果缺乏 Canvas 環境變數)
-            const isLocalRun = !firebaseConfig || Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey;
+            // 檢查使用者是否已填寫配置，並移除 null 值避免初始化錯誤
+            const cleanConfig = Object.fromEntries(
+                Object.entries(YOUR_FIREBASE_CONFIG).filter(([_, v]) => v !== null)
+            );
+            const hasUserConfig = cleanConfig.apiKey && cleanConfig.projectId;
 
-            if (isLocalRun) {
-                console.warn("Firebase設定檔遺失。雲端訂單備份功能已停用 (本地運行模式)。");
-                document.getElementById('user-info').textContent = '用戶ID: 離線模式';
+            if (!hasUserConfig) {
+                console.warn("Firebase 設定檔遺失或未填寫。雲端訂單備份功能已停用 (離線模式)。");
+                document.getElementById('user-info').textContent = '用戶ID: 離線模式 (請填寫配置)';
                 return; // 停止初始化，避免錯誤
             }
             
-            // --- 正常 Canvas 環境初始化流程 ---
+            // --- 正常初始化流程 (使用用戶的配置) ---
             try {
-                window.app = initializeApp(firebaseConfig);
+                window.app = initializeApp(cleanConfig);
                 window.db = getFirestore(window.app);
                 window.auth = getAuth(window.app);
                 window.isFirebaseReady = true;
 
-                // 登入
-                if (initialAuthToken) {
-                    await signInWithCustomToken(window.auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(window.auth);
-                }
+                // 在 GitHub Pages 環境中，我們只執行匿名登入
+                await signInAnonymously(window.auth);
 
                 onAuthStateChanged(window.auth, (user) => {
                     if (user) {
@@ -59,7 +70,7 @@
                         document.getElementById('user-info').textContent = '用戶ID: ' + user.uid.substring(0, 8) + '... (雲端連線)';
                     } else {
                         window.currentUserId = null;
-                        document.getElementById('user-info').textContent = '用戶ID: 離線';
+                        document.getElementById('user-info').textContent = '用戶ID: 連線失敗';
                     }
                 });
 
@@ -293,7 +304,7 @@
             }
 
             const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.price, 0);
-            let docRefId = 'N/A (本地模式)'; // Default ID before submission
+            let docRefId = 'N/A (離線模式)'; // Default ID before submission
 
             document.getElementById('loading-overlay').classList.remove('hidden');
 
@@ -317,6 +328,7 @@
                 };
 
                 // Private collection path for orders: artifacts/{appId}/users/{userId}/orders
+                // 這裡的 appId 會使用您在 YOUR_FIREBASE_CONFIG 中設定的 projectId
                 const path = `artifacts/${window.appId}/users/${window.currentUserId}/orders`;
 
                 try {
@@ -329,7 +341,7 @@
                     showNotification(`雲端備份失敗：${e.message}。訂單將透過 LINE 傳送。`, 'error');
                 }
             } else {
-                 showNotification(`雲端備份已跳過 (本地運行模式)。`, 'error');
+                 showNotification(`雲端備份已跳過 (離線模式)。`, 'error');
             }
 
 
@@ -444,10 +456,10 @@
 
         // --- INITIALIZATION ---
         window.onload = async () => {
-            // 1. 嘗試初始化 Firebase (在本地會失敗，但這是預期的)
+            // 1. 嘗試初始化 Firebase 
             await window.initializeFirebase();
             
-            // 2. 無論 Firebase 連線成功與否，都強制顯示菜單，解決卡住問題
+            // 2. 無論 Firebase 連線成功與否，都強制顯示菜單
             renderMenu(); 
             
             // 3. 確保購物車數量正確顯示
