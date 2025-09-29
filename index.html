@@ -110,7 +110,6 @@
         const menuData = [
             // --- 炒飯類 (Fried Rice) ---
             { id: 'FR1', name: '肉絲炒飯', price: 70, category: '炒飯類', description: '經典肉絲，米粒分明' },
-            // 修正: 蝦仁蛋炒飯價格從 75 調整為 80
             { id: 'FR2', name: '蝦仁蛋炒飯', price: 80, category: '炒飯類', description: 'Q彈蝦仁，金黃蛋花' },
             { id: 'FR3', name: '香腸蛋炒飯', price: 75, category: '炒飯類', description: '台式香腸，風味獨特' },
             { id: 'FR4', name: '火腿蛋炒飯', price: 75, category: '炒飯類', description: '火腿丁，經典口味' },
@@ -168,12 +167,10 @@
             { id: 'NS1', name: '鍋燒意麵', price: 80, category: '鍋燒類', description: '經典意麵，豐富配料' },
             { id: 'NS2', name: '鍋燒冬粉', price: 80, category: '鍋燒類', description: '清爽冬粉，暖胃湯頭' },
             { id: 'NS3', name: '鍋燒烏龍麵', price: 80, category: '鍋燒類', description: 'Q彈烏龍麵，鮮美湯頭' },
-            // 修正: 味噌馬龍麵改為味噌烏龍麵
             { id: 'NS4', name: '味噌烏龍麵', price: 80, category: '鍋燒類', description: '日式味噌湯頭' },
             { id: 'NS5', name: '鍋燒海鮮粥', price: 80, category: '鍋燒類', description: '新鮮海鮮，濃郁粥底' },
             
             // --- 精緻套餐 (Set Meals) ---
-            // 修正: 附白飯(無限量) 改為 附白飯(上限三碗)
             { id: 'SM1', name: '宮保雞丁套餐', price: 260, category: '精緻套餐', description: '附白飯(上限三碗)、三樣配菜及每日推薦湯' },
             { id: 'SM2', name: '三杯雞丁套餐', price: 260, category: '精緻套餐', description: '附白飯(上限三碗)、三樣配菜及每日推薦湯' },
             { id: 'SM3', name: '蔥爆豬套餐', price: 260, category: '精緻套餐', description: '附白飯(上限三碗)、三樣配菜及每日推薦湯' },
@@ -186,11 +183,9 @@
             { id: 'SP4', name: '魚丸湯', price: 35, category: '湯類', description: '鮮美魚丸，清爽不膩' },
             { id: 'SP5', name: '味噌蛤仔湯', price: 50, category: '湯類', description: '味噌與蛤蜊的結合' },
             { id: 'SP6', name: '蛤仔湯', price: 30, category: '湯類', description: '原味蛤蜊，鮮甜暖胃' },
-            // 修正: 筍仔湯改為鮮美蛤仔湯，售價 50 元
             { id: 'SP7', name: '鮮美蛤仔湯', price: 50, category: '湯類', description: '新鮮蛤蜊，升級份量或加料' },
 
             // --- 單點小炒 (Side Dishes) ---
-            // 修正: 時令青菜暫定價為 40 元
             { id: 'SD1', name: '時令青菜', price: 40, category: '單點/小菜', description: '新鮮時令蔬菜，請依現場時價，暫定40元' },
             { id: 'SD2', name: '白飯', price: 10, category: '單點/小菜', description: '香Q白飯' },
             { id: 'SD3', name: '蔥花蛋', price: 40, category: '單點/小菜', description: '蔥花與蛋的完美結合' },
@@ -211,7 +206,6 @@
             { id: 'SD18', name: '糖醋雞丁', price: 85, category: '單點/小菜', description: '單點菜餚，無附飯' },
             { id: 'SD19', name: '青椒牛肉', price: 90, category: '單點/小菜', description: '單點菜餚，無附飯' },
             { id: 'SD20', name: '泡菜牛肉', price: 90, category: '單點/小菜', description: '單點菜餚，無附飯' },
-            { id: 'SD21', name: '九層塔蛋', price: 40, category: '單點/小菜', description: '九層塔香氣十足' }, // 圖片上有兩次九層塔蛋，保留一個
         ];
 
         let cart = {}; // { uniqueKey: { item, quantity, isExtra, isSpicy, noGreenOnion, price, uniqueKey } }
@@ -345,9 +339,8 @@
             const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
 
             document.getElementById('cart-count').textContent = totalItems;
-            document.getElementById('cart-total-amount').textContent = formatCurrency(totalAmount);
-
-            // Update main checkout modal content if it's open
+            
+            // Update main checkout modal content if it's open (handles all totals)
             renderCartModalContent();
         }
 
@@ -360,8 +353,16 @@
 
             let html = '';
             const totalAmount = cartItems.reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
+            const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0); // NEW: Calculate total items
             
             document.getElementById('cart-total-amount').textContent = formatCurrency(totalAmount);
+            
+            // NEW: Update total items display in the modal
+            const cartTotalItemsEl = document.getElementById('cart-total-items');
+            if (cartTotalItemsEl) {
+                cartTotalItemsEl.textContent = `${totalItems} 份`;
+            }
+
 
             if (cartItems.length === 0) {
                 html = '<p class="text-gray-500 text-center py-8">購物車是空的，快去點餐吧！</p>';
@@ -442,6 +443,7 @@
 
 
             const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
+            const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
             let docRefId = 'N/A (離線模式)';
 
             document.getElementById('loading-overlay').classList.remove('hidden');
@@ -466,6 +468,7 @@
                         subtotal: item.finalPrice * item.quantity
                     })),
                     totalAmount: totalAmount,
+                    totalItems: totalItems, // 新增：合計數量
                     status: 'Pending',
                     createdAt: window.serverTimestamp()
                 };
@@ -492,6 +495,7 @@
             messageText += `📝 備註 (送達/要求): ${notes || '無'}\n`; // 備註
             messageText += `--------------------------\n`;
             messageText += `💰 總金額: ${formatCurrency(totalAmount)}\n`;
+            messageText += `🔢 合計數量: ${totalItems} 份\n`; // NEW: 合計數量
             messageText += `📜 訂單詳情:\n`;
 
             Object.values(cart).forEach(item => {
@@ -714,10 +718,18 @@
                     </button>
                 </div>
                 <div class="p-6 pb-4 border-b border-gray-100 flex-shrink-0">
-                    <div class="flex justify-between items-center text-2xl font-bold mb-4">
-                        <span>總計金額:</span>
-                        <span id="cart-total-amount" class="text-orange-600">$0</span>
+                    <!-- UPDATED: 顯示總計金額和合計數量 -->
+                    <div class="space-y-2 mb-4">
+                        <div class="flex justify-between items-center text-2xl font-bold">
+                            <span>總計金額:</span>
+                            <span id="cart-total-amount" class="text-orange-600">$0</span>
+                        </div>
+                        <div class="flex justify-between items-center text-lg font-semibold text-gray-700 border-t pt-2">
+                            <span>合計數量:</span>
+                            <span id="cart-total-items" class="text-gray-900 font-extrabold">0 份</span>
+                        </div>
                     </div>
+                    <!-- END UPDATED BLOCK -->
                     <button id="checkout-button" onclick="submitOrder()" class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-lg hover:bg-green-600 transition duration-150 active:scale-[.99] disabled:opacity-50 disabled:cursor-not-allowed">
                         送出訂單 & 通知 LINE ID: joe690130
                     </button>
