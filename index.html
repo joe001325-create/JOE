@@ -110,7 +110,8 @@
         const menuData = [
             // --- 炒飯類 (Fried Rice) ---
             { id: 'FR1', name: '肉絲炒飯', price: 70, category: '炒飯類', description: '經典肉絲，米粒分明' },
-            { id: 'FR2', name: '蝦仁蛋炒飯', price: 75, category: '炒飯類', description: 'Q彈蝦仁，金黃蛋花' },
+            // 修正: 蝦仁蛋炒飯價格從 75 調整為 80
+            { id: 'FR2', name: '蝦仁蛋炒飯', price: 80, category: '炒飯類', description: 'Q彈蝦仁，金黃蛋花' },
             { id: 'FR3', name: '香腸蛋炒飯', price: 75, category: '炒飯類', description: '台式香腸，風味獨特' },
             { id: 'FR4', name: '火腿蛋炒飯', price: 75, category: '炒飯類', description: '火腿丁，經典口味' },
             { id: 'FR5', name: '培根蛋炒飯', price: 75, category: '炒飯類', description: '培根香氣，口感豐富' },
@@ -152,7 +153,7 @@
             { id: 'WR8', name: '紅燒豆腐燴飯', price: 75, category: '燴飯/快炒', description: '紅燒豆腐醬汁，鹹香回味' },
 
             // --- 韓式泡菜類 (Kimchi Dishes) ---
-            { id: 'KC1', name: '泡菜豬肉炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜炒豬肉' },
+            { id: 'KC1', name: '泡菜豬肉飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜炒豬肉，附白飯' },
             { id: 'KC2', name: '泡菜蝦仁炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜風味炒飯' },
             { id: 'KC3', name: '泡菜香腸炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與香腸' },
             { id: 'KC4', name: '泡菜雞肉炒飯', price: 80, category: '韓式泡菜類', description: '酸辣泡菜與雞肉丁' },
@@ -167,7 +168,7 @@
             { id: 'NS1', name: '鍋燒意麵', price: 80, category: '鍋燒類', description: '經典意麵，豐富配料' },
             { id: 'NS2', name: '鍋燒冬粉', price: 80, category: '鍋燒類', description: '清爽冬粉，暖胃湯頭' },
             { id: 'NS3', name: '鍋燒烏龍麵', price: 80, category: '鍋燒類', description: 'Q彈烏龍麵，鮮美湯頭' },
-            // 修正: 將味噌馬龍麵改為味噌烏龍麵
+            // 修正: 味噌馬龍麵改為味噌烏龍麵
             { id: 'NS4', name: '味噌烏龍麵', price: 80, category: '鍋燒類', description: '日式味噌湯頭' },
             { id: 'NS5', name: '鍋燒海鮮粥', price: 80, category: '鍋燒類', description: '新鮮海鮮，濃郁粥底' },
             
@@ -185,11 +186,11 @@
             { id: 'SP4', name: '魚丸湯', price: 35, category: '湯類', description: '鮮美魚丸，清爽不膩' },
             { id: 'SP5', name: '味噌蛤仔湯', price: 50, category: '湯類', description: '味噌與蛤蜊的結合' },
             { id: 'SP6', name: '蛤仔湯', price: 30, category: '湯類', description: '原味蛤蜊，鮮甜暖胃' },
-            // 修正: 筍仔湯改為蛤仔湯售價50元 (作為大份或升級選項)
+            // 修正: 筍仔湯改為鮮美蛤仔湯，售價 50 元
             { id: 'SP7', name: '鮮美蛤仔湯', price: 50, category: '湯類', description: '新鮮蛤蜊，升級份量或加料' },
 
             // --- 單點小炒 (Side Dishes) ---
-            // 修正: 時令青菜暫定價改為40元
+            // 修正: 時令青菜暫定價為 40 元
             { id: 'SD1', name: '時令青菜', price: 40, category: '單點/小菜', description: '新鮮時令蔬菜，請依現場時價，暫定40元' },
             { id: 'SD2', name: '白飯', price: 10, category: '單點/小菜', description: '香Q白飯' },
             { id: 'SD3', name: '蔥花蛋', price: 40, category: '單點/小菜', description: '蔥花與蛋的完美結合' },
@@ -414,20 +415,31 @@
         // --- ORDER SUBMISSION AND LINE INTEGRATION ---
 
         async function submitOrder() {
-            // 取得外送資訊和送達時間
+            // 取得新的訂單類型欄位
+            const orderType = document.getElementById('order-type-select').value.trim(); 
+            // 希望送達時間改為備註
+            const notes = document.getElementById('notes-input').value.trim(); 
             const deliveryInfo = document.getElementById('delivery-info-input').value.trim();
-            const deliveryTime = document.getElementById('delivery-time-input').value.trim() || '盡快送達';
             
             if (Object.keys(cart).length === 0) {
                 showNotification('購物車是空的，無法送出訂單', 'error');
                 return;
             }
-            // 驗證新的輸入欄位
+            
+            // 驗證新的輸入欄位：訂單類型
+            if (!orderType) {
+                showNotification('請選擇訂單類型 (自取/外送)！', 'error');
+                document.getElementById('order-type-select').focus();
+                return;
+            }
+
+            // 驗證原本必填的輸入欄位
             if (!deliveryInfo) {
-                showNotification('請輸入公司/電話/地址/或自取 (必填欄位)！', 'error');
+                showNotification('請輸入公司/電話/地址 (必填欄位)！', 'error');
                 document.getElementById('delivery-info-input').focus();
                 return;
             }
+
 
             const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
             let docRefId = 'N/A (離線模式)';
@@ -438,8 +450,9 @@
                 const orderData = {
                     userId: window.currentUserId,
                     appId: window.appId,
+                    orderType: orderType, // 新增欄位
                     deliveryInfo: deliveryInfo, 
-                    deliveryTime: deliveryTime, 
+                    notes: notes, // 更新為備註
                     items: Object.values(cart).map(item => ({
                         id: item.id,
                         name: item.name,
@@ -474,8 +487,9 @@
             // 更新 LINE 訊息格式
             let messageText = `【珍香小館 - 新訂單】\n`;
             messageText += `==========================\n`;
-            messageText += `📍 外送資訊: ${deliveryInfo}\n`;
-            messageText += `⏰ 希望送達時間: ${deliveryTime}\n`;
+            messageText += `🛍️ 訂單類型: ${orderType}\n`; // 訂單類型
+            messageText += `📍 客戶/外送資訊: ${deliveryInfo}\n`;
+            messageText += `📝 備註 (送達/要求): ${notes || '無'}\n`; // 備註
             messageText += `--------------------------\n`;
             messageText += `💰 總金額: ${formatCurrency(totalAmount)}\n`;
             messageText += `📜 訂單詳情:\n`;
@@ -494,16 +508,19 @@
             const lineMessage = encodeURIComponent(messageText);
             const lineUrl = `https://line.me/R/share?text=${lineMessage}`;
 
-            window.open(lineUrl, '_blank');
-            
+            // 重置輸入欄位和購物車
             document.getElementById('delivery-info-input').value = ''; 
-            document.getElementById('delivery-time-input').value = ''; 
+            document.getElementById('notes-input').value = ''; 
+            document.getElementById('order-type-select').value = ''; 
             cart = {};
             updateCartDisplay();
             toggleCartModal(false);
 
             document.getElementById('loading-overlay').classList.add('hidden');
             showNotification(`請切換至 LINE 視窗手動傳送訊息給 joe690130 完成通知！`, 'success');
+            
+            // 跳轉至 LINE
+            window.open(lineUrl, '_blank');
         }
 
         // --- UI RENDERING ---
@@ -707,10 +724,17 @@
                     <p class="text-center text-sm text-gray-500 mt-2 mb-4">
                         **送出後將跳出 LINE 視窗，請點擊傳送給 joe690130 完成通知**
                     </p>
-                    <!-- 修正：客戶資訊輸入欄位 -->
+                    <!-- 客戶資訊輸入欄位 -->
                     <div id="customer-input-container" class="space-y-3 border-t pt-4 hidden">
+                        <!-- 新增：自取/外送選項 -->
+                        <select id="order-type-select" required class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition">
+                            <option value="">-- 請選擇訂單類型 (必填) --</option>
+                            <option value="外送">外送 (Delivery)</option>
+                            <option value="自取">自取 (Pickup)</option>
+                        </select>
                         <input type="text" id="delivery-info-input" placeholder="輸入公司/電話/地址 (必填)" required class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" />
-                        <textarea id="delivery-time-input" placeholder="希望送達時間 (選填)" class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition h-20 resize-none"></textarea>
+                        <!-- 修正：希望送達時間改為備註 -->
+                        <textarea id="notes-input" placeholder="備註 (例: 送達時間, 特殊要求)" class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition h-20 resize-none"></textarea>
                     </div>
                 </div>
                 <div class="flex-grow overflow-y-auto">
@@ -732,5 +756,3 @@
     </div>
 </body>
 </html>
-
-
