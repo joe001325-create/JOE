@@ -352,6 +352,7 @@
 
         /**
          * Renders the cart contents inside the modal.
+         * MODIFIED: Updated item display format to clearly show final unit price.
          */
         function renderCartModalContent() {
             const cartList = document.getElementById('cart-list');
@@ -382,12 +383,13 @@
 
                 cartItems.forEach(item => {
                     // 組合所有選項的顯示文字
-                    let optionText = item.isExtra ? '<span class="text-red-500 font-medium">加量+$10</span>' : '<span class="text-gray-400 font-normal">一般份量</span>';
+                    let optionText = '';
+                    if (item.isExtra) optionText += '<span class="text-red-500 font-medium">加量+$10</span>';
                     if (item.isSpicy) {
-                        optionText += ' / <span class="text-red-600 font-medium">加辣🌶️</span>';
+                        optionText += (optionText ? ' / ' : '') + '<span class="text-red-600 font-medium">加辣🌶️</span>';
                     }
                     if (item.noGreenOnion) {
-                        optionText += ' / <span class="text-gray-600 font-medium">不加蔥🌿</span>';
+                        optionText += (optionText ? ' / ' : '') + '<span class="text-gray-600 font-medium">不加蔥🌿</span>';
                     }
 
                     const subtotal = item.finalPrice * item.quantity;
@@ -395,10 +397,17 @@
                     html += `
                         <div class="flex items-center justify-between p-4 border-b border-orange-100 last:border-b-0">
                             <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-lg text-gray-800 truncate flex-shrink">${item.name}</p>
+                                <!-- DISPLAY: Name (Final Price) -->
+                                <p class="font-semibold text-lg text-gray-800 truncate flex-shrink">
+                                    ${item.name} 
+                                    <span class="text-orange-600 font-bold ml-1">(${formatCurrency(item.finalPrice)})</span>
+                                </p>
+                                <!-- DISPLAY: Options -->
                                 <p class="text-sm text-gray-500">${optionText}</p>
-                                <p class="text-orange-500">${formatCurrency(item.finalPrice)} x ${item.quantity} = ${formatCurrency(subtotal)}</p>
                             </div>
+                            <!-- Subtotal display next to controls -->
+                            <p class="text-lg font-bold text-red-600 ml-4 hidden sm:block">${formatCurrency(subtotal)}</p>
+
                             <div class="flex items-center space-x-2 ml-4 flex-shrink-0">
                                 <button onclick="removeFromCart('${item.uniqueKey}')" class="w-8 h-8 flex items-center justify-center bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition duration-150 active:scale-95">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -423,6 +432,7 @@
         
         /**
          * 步驟 1: 驗證表單，儲存至 Firestore，並顯示確認視窗。
+         * MODIFIED: Updated item description in the LINE message.
          */
         async function prepareOrderAndShowConfirmation() {
             // 取得輸入欄位
@@ -507,11 +517,16 @@
             messageText += `📜 訂單詳情:\n`;
 
             Object.values(cart).forEach(item => {
-                let optionText = item.isExtra ? ' (加量+$10)' : '';
+                let optionText = '';
+                if (item.isExtra) optionText += ' (加量)';
                 if (item.isSpicy) optionText += ' (加辣)';
                 if (item.noGreenOnion) optionText += ' (不加蔥)'; 
-
-                messageText += ` > ${item.name}${optionText} x ${item.quantity} (${formatCurrency(item.finalPrice * item.quantity)})\n`;
+                
+                // NEW FORMAT: ItemName(FinalPrice) [Options] x Quantity (Subtotal)
+                messageText += 
+                    ` > ${item.name} (${formatCurrency(item.finalPrice)})${optionText} ` + 
+                    `x ${item.quantity} ` + 
+                    `(${formatCurrency(item.finalPrice * item.quantity)})\n`;
             });
 
             messageText += `--------------------------\n`;
@@ -737,7 +752,7 @@
     <!-- Main Content: Menu -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <!-- NEW: LINE ID PROMINENT WARNING -->
+        <!-- LINE ID PROMINENT WARNING -->
         <div class="p-4 mb-8 bg-yellow-100 border-l-8 border-red-500 rounded-xl shadow-lg animate-pulse">
             <div class="flex items-center space-x-3">
                 <!-- Warning Icon -->
