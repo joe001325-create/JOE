@@ -432,7 +432,7 @@
         
         /**
          * 步驟 1: 驗證表單，儲存至 Firestore，並顯示確認視窗。
-         * MODIFIED: Updated item description in the LINE message.
+         * MODIFIED: Updated item description in the LINE message to remove subtotal.
          */
         async function prepareOrderAndShowConfirmation() {
             // 取得輸入欄位
@@ -522,11 +522,10 @@
                 if (item.isSpicy) optionText += ' (加辣)';
                 if (item.noGreenOnion) optionText += ' (不加蔥)'; 
                 
-                // NEW FORMAT: ItemName(FinalPrice) [Options] x Quantity (Subtotal)
+                // *** UPDATED FORMAT: ItemName(FinalPrice) [Options] x Quantity ***
                 messageText += 
                     ` > ${item.name} (${formatCurrency(item.finalPrice)})${optionText} ` + 
-                    `x ${item.quantity} ` + 
-                    `(${formatCurrency(item.finalPrice * item.quantity)})\n`;
+                    `x ${item.quantity}\n`; // <-- REMOVED subtotal
             });
 
             messageText += `--------------------------\n`;
