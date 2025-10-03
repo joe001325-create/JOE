@@ -112,6 +112,8 @@
     <script>
         // --- APP DATA AND STATE ---
         const EXTRA_CHARGE = 10; // 加量費用 NT$10
+        const LINE_ID = 'joe690130';
+        const LINE_LINK = 'https://line.me/ti/p/3xrLV68m17'; // 新增 LINE 連結
         
         const menuData = [
             // --- 炒飯類 (Fried Rice) ---
@@ -432,7 +434,7 @@
         
         /**
          * 步驟 1: 驗證表單，儲存至 Firestore，並顯示確認視窗。
-         * MODIFIED: Updated item description in the LINE message to remove subtotal.
+         * MODIFIED: Updated item description in the LINE message to remove subtotal and added LINE link.
          */
         async function prepareOrderAndShowConfirmation() {
             // 取得輸入欄位
@@ -522,14 +524,16 @@
                 if (item.isSpicy) optionText += ' (加辣)';
                 if (item.noGreenOnion) optionText += ' (不加蔥)'; 
                 
-                // *** UPDATED FORMAT: ItemName(FinalPrice) [Options] x Quantity ***
+                // UPDATED FORMAT: ItemName(FinalPrice) [Options] x Quantity
                 messageText += 
                     ` > ${item.name} (${formatCurrency(item.finalPrice)})${optionText} ` + 
                     `x ${item.quantity}\n`; // <-- REMOVED subtotal
             });
 
             messageText += `--------------------------\n`;
-            messageText += `(參考ID: ${docRefId}) 請傳送給 LINE ID: joe690130`;
+            // *** START CHANGE: Added LINE link to the message ***
+            messageText += `(參考ID: ${docRefId})\n✅ 請傳送訊息給 LINE ID: ${LINE_ID} (點此加入: ${LINE_LINK})`;
+            // *** END CHANGE ***
 
             const lineMessage = encodeURIComponent(messageText);
             const lineUrl = `https://line.me/R/share?text=${lineMessage}`;
@@ -568,7 +572,9 @@
             updateCartDisplay();
             toggleConfirmationModal(false); // 關閉確認視窗
             
-            showNotification(`請切換至 LINE 視窗手動傳送訊息給 joe690130 完成通知！`, 'success');
+            // *** START CHANGE: Simplified notification text ***
+            showNotification(`請切換至 LINE 視窗完成通知！`, 'success');
+            // *** END CHANGE ***
                     
             // 3. 跳轉至 LINE
             window.open(lineUrl, '_blank');
@@ -751,7 +757,7 @@
     <!-- Main Content: Menu -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        <!-- LINE ID PROMINENT WARNING -->
+        <!-- LINE ID PROMINENT WARNING (UPDATED with link) -->
         <div class="p-4 mb-8 bg-yellow-100 border-l-8 border-red-500 rounded-xl shadow-lg animate-pulse">
             <div class="flex items-center space-x-3">
                 <!-- Warning Icon -->
@@ -764,6 +770,11 @@
                     <span class="block text-xl font-extrabold text-red-600">
                         LINE ID: joe690130
                     </span>
+                    <!-- START CHANGE: Added LINE link -->
+                    <a href="https://line.me/ti/p/3xrLV68m17" target="_blank" class="block text-lg font-bold text-blue-600 hover:underline transition duration-150">
+                        👉 點此連結快速加入 LINE 好友
+                    </a>
+                    <!-- END CHANGE -->
                 </p>
             </div>
         </div>
