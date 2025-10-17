@@ -113,7 +113,7 @@
         // --- APP DATA AND STATE ---
         const EXTRA_CHARGE = 10; // 加量費用 NT$10
         const LINE_ID = 'joe690130';
-        const LINE_LINK = 'https://line.me/ti/p/3xrLV68m17'; // 新增 LINE 連結
+        const LINE_LINK = 'https://line.me/ti/p/3xrLV68m17'; // LINE 連結
         
         const menuData = [
             // --- 炒飯類 (Fried Rice) ---
@@ -354,7 +354,6 @@
 
         /**
          * Renders the cart contents inside the modal.
-         * MODIFIED: Updated item display format to clearly show final unit price.
          */
         function renderCartModalContent() {
             const cartList = document.getElementById('cart-list');
@@ -434,32 +433,24 @@
         
         /**
          * 步驟 1: 驗證表單，儲存至 Firestore，並顯示確認視窗。
-         * MODIFIED: Updated item description in the LINE message to remove subtotal and added LINE link.
          */
         async function prepareOrderAndShowConfirmation() {
             // 取得輸入欄位
-            const orderType = document.getElementById('order-type-select').value.trim(); 
             const notes = document.getElementById('notes-input').value.trim(); 
-            const deliveryInfo = document.getElementById('delivery-info-input').value.trim();
+            // *** 變更: 從 contact-phone-input 取得連絡電話 ***
+            const contactPhone = document.getElementById('contact-phone-input').value.trim();
             
             if (Object.keys(cart).length === 0) {
                 showNotification('購物車是空的，無法送出訂單', 'error');
                 return;
             }
             
-            // 驗證必填欄位
-            if (!orderType) {
-                showNotification('請選擇訂單類型 (自取/外送)！', 'error');
-                document.getElementById('order-type-select').focus();
+            // *** 變更: 驗證連絡電話 (必填) ***
+            if (!contactPhone) {
+                showNotification('請輸入連絡電話 (必填欄位)！', 'error');
+                document.getElementById('contact-phone-input').focus();
                 return;
             }
-
-            if (!deliveryInfo) {
-                showNotification('請輸入公司/電話/地址 (必填欄位)！', 'error');
-                document.getElementById('delivery-info-input').focus();
-                return;
-            }
-
 
             const totalAmount = Object.values(cart).reduce((sum, item) => sum + item.quantity * item.finalPrice, 0);
             const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
@@ -467,13 +458,13 @@
 
             document.getElementById('loading-overlay').classList.remove('hidden');
 
-            // --- 1. 嘗試備份至 Firestore ---
+            // --- 1. 嘗試備份至 Firestore (仍保留備份，但不再在訊息中強調 ID) ---
             if (window.isFirebaseReady && window.db && window.currentUserId) {
                 const orderData = {
                     userId: window.currentUserId,
                     appId: window.appId,
-                    orderType: orderType, 
-                    deliveryInfo: deliveryInfo, 
+                    // *** 變更: 移除 orderType 欄位 ***
+                    contactPhone: contactPhone, // 新增連絡電話
                     notes: notes, 
                     items: Object.values(cart).map(item => ({
                         id: item.id,
@@ -507,11 +498,11 @@
                  showNotification(`雲端備份已跳過 (離線模式)。`, 'error');
             }
 
-            // --- 2. 構建 LINE 訊息 ---
+            // --- 2. 構建 LINE 訊息 (移除訂單類型，變更連絡資訊標籤，移除參考 ID/LINE 連結) ---
             let messageText = `【珍香小館 - 新訂單】\n`;
             messageText += `==========================\n`;
-            messageText += `🛍️ 訂單類型: ${orderType}\n`; 
-            messageText += `📍 客戶/外送資訊: ${deliveryInfo}\n`;
+            // *** 變更: 移除訂單類型 ***
+            messageText += `📞 連絡電話: ${contactPhone}\n`; // 變更為連絡電話
             messageText += `📝 備註 (送達/要求): ${notes || '無'}\n`; 
             messageText += `--------------------------\n`;
             messageText += `💰 總金額: ${formatCurrency(totalAmount)}\n`;
@@ -524,16 +515,12 @@
                 if (item.isSpicy) optionText += ' (加辣)';
                 if (item.noGreenOnion) optionText += ' (不加蔥)'; 
                 
-                // UPDATED FORMAT: ItemName(FinalPrice) [Options] x Quantity
                 messageText += 
                     ` > ${item.name} (${formatCurrency(item.finalPrice)})${optionText} ` + 
-                    `x ${item.quantity}\n`; // <-- REMOVED subtotal
+                    `x ${item.quantity}\n`;
             });
 
-            messageText += `--------------------------\n`;
-            // *** START CHANGE: Added LINE link to the message ***
-            messageText += `(參考ID: ${docRefId})\n✅ 請傳送訊息給 LINE ID: ${LINE_ID} (點此加入: ${LINE_LINK})`;
-            // *** END CHANGE ***
+            messageText += `--------------------------`; // *** 變更: 訊息結尾，不包含 ID/LINE 連結 ***
 
             const lineMessage = encodeURIComponent(messageText);
             const lineUrl = `https://line.me/R/share?text=${lineMessage}`;
@@ -544,7 +531,7 @@
             // 填充確認視窗的內容
             document.getElementById('confirmation-message-display').textContent = messageText;
             document.getElementById('confirmation-total-amount').textContent = formatCurrency(totalAmount);
-            document.getElementById('confirmation-doc-id').textContent = `雲端參考ID: ${docRefId}`;
+            // document.getElementById('confirmation-doc-id').textContent = `雲端參考ID: ${docRefId}`; // *** 變更: 不再顯示 ID ***
 
             // 關閉購物車視窗，開啟確認視窗
             document.getElementById('loading-overlay').classList.add('hidden');
@@ -565,16 +552,15 @@
             const { lineUrl, docRefId } = tempOrderSubmissionData;
             
             // 2. 清理 (重置購物車、輸入欄位、關閉視窗)
-            document.getElementById('delivery-info-input').value = ''; 
+            // *** 變更: 清理新的連絡電話欄位 ***
+            document.getElementById('contact-phone-input').value = ''; 
             document.getElementById('notes-input').value = ''; 
-            document.getElementById('order-type-select').value = ''; 
+            // 訂單類型已移除，無需清理
             cart = {};
             updateCartDisplay();
             toggleConfirmationModal(false); // 關閉確認視窗
             
-            // *** START CHANGE: Simplified notification text ***
             showNotification(`請切換至 LINE 視窗完成通知！`, 'success');
-            // *** END CHANGE ***
                     
             // 3. 跳轉至 LINE
             window.open(lineUrl, '_blank');
@@ -722,7 +708,7 @@
                     <span class="text-sm text-gray-500 font-normal block">線上點餐服務</span>
                 </h1>
                 
-                <!-- NEW INFORMATION BLOCK (Based on the uploaded image) -->
+                <!-- NEW INFORMATION BLOCK -->
                 <div class="mt-2 text-sm text-gray-700 space-y-1">
                     <p class="font-semibold text-base flex items-center">
                         <svg class="w-4 h-4 mr-2 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
@@ -770,7 +756,7 @@
                     <span class="block text-xl font-extrabold text-red-600">
                         LINE ID: joe690130
                     </span>
-                    <!-- START CHANGE: Added LINE link -->
+                    <!-- Added LINE link -->
                     <a href="https://line.me/ti/p/3xrLV68m17" target="_blank" class="block text-lg font-bold text-blue-600 hover:underline transition duration-150">
                         👉 點此連結快速加入 LINE 好友
                     </a>
@@ -781,7 +767,7 @@
         <!-- END NEW WARNING -->
 
         <p class="text-lg text-gray-600 mb-6 border-b pb-4">
-            請點選您想點的品項。點餐時可選擇 **加量 (+$${EXTRA_CHARGE})**、**加辣**、**不加蔥** 等選項。
+            請點選您想點的品項。點餐時可選擇 **加量 (+$${EXTRA_CHARGE})**、**加辣**、****、**不加蔥** 等選項。
         </p>
         <div id="menu-container">
             <div class="text-center py-20 text-gray-500">
@@ -873,14 +859,11 @@
                     </p>
                     <!-- 客戶資訊輸入欄位 -->
                     <div id="customer-input-container" class="space-y-3 border-t pt-4 hidden">
-                        <!-- 新增：自取/外送選項 -->
-                        <select id="order-type-select" required class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition">
-                            <option value="">-- 請選擇訂單類型 (必填) --</option>
-                            <option value="外送">外送 (Delivery)</option>
-                            <option value="自取">自取 (Pickup)</option>
-                        </select>
-                        <input type="text" id="delivery-info-input" placeholder="輸入公司/電話/地址 (必填)" required class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" />
-                        <!-- 修正：希望送達時間改為備註 -->
+                        <!-- *** 變更: 移除 order-type-select *** -->
+                        
+                        <!-- *** 變更: 連絡電話 (必填) *** -->
+                        <input type="text" id="contact-phone-input" placeholder="輸入連絡電話 (必填)" required class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition" />
+                        
                         <textarea id="notes-input" placeholder="備註 (例: 送達時間, 特殊要求)" class="w-full p-3 border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition h-20 resize-none"></textarea>
                     </div>
                 </div>
@@ -909,7 +892,7 @@
                 <div class="flex-grow overflow-y-auto p-6 space-y-4">
                     <div class="p-4 bg-orange-50 border-l-4 border-orange-400 rounded-lg">
                         <h4 class="text-xl font-bold text-orange-700">總金額: <span id="confirmation-total-amount" class="text-red-600"></span></h4>
-                        <p id="confirmation-doc-id" class="text-xs text-gray-500 mt-1"></p>
+                        <!-- *** 變更: 移除 confirmation-doc-id 顯示 *** -->
                     </div>
 
                     <h4 class="text-lg font-bold text-gray-700 border-b pb-2">將傳送給店家的 LINE 訊息內容:</h4>
